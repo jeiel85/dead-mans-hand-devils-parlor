@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#120a0a">
+  <title>Dead Man's Hand: Devil's Parlor — 블러핑 × 러시안 룰렛 로그라이크 (웹 프로토타입)</title>
+  <meta name="description" content="Liar's Bar × Buckshot Roulette × Inscryption. 영혼을 저당 잡힌 도박사가 악마의 살롱 지하 7층을 돌파하는 블러핑 룰렛 로그라이크. 브라우저에서 바로 플레이하는 설계서 검증용 프로토타입.">
+  <meta property="og:title" content="Dead Man's Hand: Devil's Parlor">
+  <meta property="og:description" content="Bluffing × russian roulette × roguelike. Playable web prototype of the game design document.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23231d1a' stroke='%236b5a48' stroke-width='4'/%3E%3Ccircle cx='50' cy='22' r='9' fill='%237a1f1f'/%3E%3Ccircle cx='74' cy='36' r='9' fill='%231b1614'/%3E%3Ccircle cx='74' cy='64' r='9' fill='%231b1614'/%3E%3Ccircle cx='50' cy='78' r='9' fill='%231b1614'/%3E%3Ccircle cx='26' cy='64' r='9' fill='%231b1614'/%3E%3Ccircle cx='26' cy='36' r='9' fill='%231b1614'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-main">DEAD MAN'S HAND</span>
+        <span class="brand-sub" id="brand-sub">Devil's Parlor</span>
+      </div>
+      <div class="hud" aria-live="polite">
+        <span id="hud-floor"></span>
+        <span class="sep">·</span>
+        <span id="hud-round"></span>
+        <span class="sep">·</span>
+        <span id="hud-seed" class="seed"></span>
+      </div>
+      <div class="controls">
+        <button id="btn-lang" class="ctl" type="button">EN</button>
+        <button id="btn-sound" class="ctl" type="button">🔊</button>
+        <button id="btn-timer" class="ctl" type="button">⏱</button>
+        <button id="btn-help" class="ctl" type="button">?</button>
+      </div>
+    </header>
+
+    <main class="table">
+      <section class="dealer-zone" aria-label="dealer">
+        <div class="portrait" id="dealer-portrait"></div>
+        <div class="dealer-info">
+          <h2 id="dealer-name"></h2>
+          <p class="dealer-title" id="dealer-title"></p>
+          <div class="hearts" id="dealer-hearts"></div>
+          <p class="focus" id="dealer-focus"></p>
+          <div class="speech" id="dealer-speech" hidden></div>
+        </div>
+        <div class="dealer-hand-wrap">
+          <p class="label" id="lbl-dealer-hand"></p>
+          <div class="dealer-hand" id="dealer-hand"></div>
+          <div class="notes" id="dealer-notes"></div>
+        </div>
+      </section>
+
+      <section class="center" aria-label="table">
+        <div class="table-rank">
+          <p class="label" id="lbl-rank"></p>
+          <div class="table-rank-card" id="table-rank-card"></div>
+          <p class="rank-name" id="table-rank-name"></p>
+        </div>
+        <div class="pile-wrap">
+          <p class="label" id="lbl-pile"></p>
+          <div class="pile" id="pile"></div>
+        </div>
+        <div class="timer" id="timer" hidden aria-live="off">
+          <div class="timer-arc" id="timer-arc"></div>
+          <span class="timer-text" id="timer-text">15</span>
+        </div>
+      </section>
+
+      <aside class="side" aria-label="revolver and log">
+        <p class="label" id="lbl-cyl"></p>
+        <div class="cylinder" id="cylinder"></div>
+        <div class="odds" id="odds"></div>
+        <p class="label" id="lbl-log"></p>
+        <div class="log" id="log" aria-live="polite"></div>
+      </aside>
+
+      <section class="player-zone" aria-label="you">
+        <div class="status">
+          <div class="hearts" id="player-hearts"></div>
+          <div class="relics-wrap"><span class="label" id="lbl-relics"></span><div class="relics" id="relics"></div></div>
+        </div>
+        <div class="items-wrap">
+          <p class="label" id="lbl-items"></p>
+          <div class="items" id="items"></div>
+        </div>
+        <div class="hand-wrap">
+          <p class="label"><span id="lbl-hand"></span> <span class="selected-count" id="lbl-selected"></span></p>
+          <div class="hand" id="player-hand"></div>
+          <div class="notes" id="player-notes"></div>
+        </div>
+        <div class="actions">
+          <button id="btn-play" class="action primary" type="button" disabled></button>
+          <button id="btn-call" class="action danger" type="button" disabled hidden></button>
+          <button id="btn-pass" class="action" type="button" disabled hidden></button>
+        </div>
+        <p class="hint" id="hint" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <div id="overlay" class="overlay" hidden>
+      <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+    </div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

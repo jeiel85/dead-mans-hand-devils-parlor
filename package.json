@@ -1,0 +1,16 @@
+{
+  "name": "dead-mans-hand-devils-parlor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dead Man's Hand: Devil's Parlor — bluffing × russian roulette × roguelike. Game design document + browser-playable prototype.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "sim": "node tools/simulate.js",
+    "start": "python -m http.server 8080"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
