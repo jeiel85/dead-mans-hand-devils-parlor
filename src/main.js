@@ -359,7 +359,7 @@ function showReveal(ev, fireEvents, extra) {
         <p class="eyebrow">${esc(t('reveal.claim', { who: whoName(game, ev.by), rank: rankName(ev.tableRank), n: ev.cards.length }))}</p>
         <div class="reveal-cards">${cards}</div>
         <h2>${title}</h2>
-        <p class="shooter">${esc(t('reveal.shooter', { who: whoName(game, ev.shooter) }))}</p>
+        <p class="shooter">${esc(t('reveal.shooter', { who: whoName(game, ev.shooter), s: ev.shooter === 'player' ? '' : 's' }))}</p>
         <div class="results" id="reveal-results" hidden>${results}</div>
         <div class="row"><button class="primary" id="btn-reveal-continue" hidden>${t('btn.continue')}</button></div>
       </div>`,
@@ -681,7 +681,7 @@ function logEvent(ev) {
     case 'reveal': {
       const cards = ev.cards.map((c) => R(c.rank)).join(', ');
       pushLog(t('log.call', { who: W(ev.challenger) }), ev.challenger);
-      return pushLog(t(ev.lie ? 'log.reveal.lie' : 'log.reveal.truth', { cards, who: W(ev.shooter) }), 'sys');
+      return pushLog(t(ev.lie ? 'log.reveal.lie' : 'log.reveal.truth', { cards, who: W(ev.shooter), s: ev.shooter === 'player' ? '' : 's' }), 'sys');
     }
     case 'fire': {
       const key = ev.effect === 'misfire' ? 'log.fire.misfire' : `log.fire.${ev.bullet}`;
