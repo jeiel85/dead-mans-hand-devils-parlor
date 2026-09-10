@@ -27,25 +27,25 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FONT_DIR = ROOT / "godot" / "assets" / "fonts"
 I18N = ROOT / "godot" / "scripts" / "core" / "i18n.gd"
-
-# Symbols and letters that reach draw_string from code rather than from a string
-# table (number formats, rank letters, the language toggle, the brand line).
-EXTRA = (
-    "0123456789/×·%-+.,:()'\"?!→ "
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz"
-)
+EXTRA_FILE = ROOT / "godot" / "assets" / "fonts" / "extra-glyphs.txt"
 
 STRING_LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
 
 def wanted_chars() -> set[str]:
-    """Every character in i18n.gd's string literals, plus EXTRA."""
-    text = I18N.read_text(encoding="utf-8")
-    chars: set[str] = set(EXTRA)
-    for match in STRING_LITERAL.finditer(text):
+    """Characters in i18n.gd's string literals plus the shared extras list.
+
+    godot/test/test_runner.gd reads the same extras file, so a glyph the UI
+    draws cannot be dropped here without the Godot test noticing.
+    """
+    chars: set[str] = set()
+    for match in STRING_LITERAL.finditer(I18N.read_text(encoding="utf-8")):
         chars.update(match.group(1))
-    # Drop control characters and the escape backslashes the regex kept.
+    for line in EXTRA_FILE.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#"):
+            continue
+        chars.update(line)
+    # Keep the space (text needs its advance width); drop control characters.
     return {c for c in chars if ord(c) >= 0x20}
 
 

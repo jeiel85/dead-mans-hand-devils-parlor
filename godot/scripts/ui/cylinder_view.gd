@@ -67,7 +67,7 @@ func _draw() -> void:
 					glyph_col = Color("f5d5d5")
 				"curse":
 					fill = Color("4a2a6a")
-					glyph = "✦"
+					glyph = "◆"
 					glyph_col = Color("e0c8ff")
 				_:
 					fill = Color("3a3632")
@@ -79,7 +79,7 @@ func _draw() -> void:
 					glyph = "●"
 				"curse":
 					fill = Color("6a3a9a")
-					glyph = "✦"
+					glyph = "◆"
 				_:
 					fill = Color("5a5650")
 					glyph = "○"

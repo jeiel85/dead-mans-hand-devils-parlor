@@ -501,6 +501,7 @@ godot/scripts/core/ai.gd        딜러 판단
 godot/scripts/core/i18n.gd      KR/EN 문자열 (오토로드)
 godot/scripts/core/audio.gd     절차 합성 WAV 16종 (오토로드, 외부 사운드 에셋 0)
 godot/scripts/core/save.gd      user://settings.json — 언어·소리·타이머·최고 기록 (오토로드)
+godot/scripts/ui/table_layout.gd  뷰포트 크기 → 패널 rect·컨트롤 크기 (순수 함수)
 godot/scripts/ui/ui_kit.gd      팔레트·폰트·버튼/패널/라인에디트 팩토리
 godot/scripts/ui/*_view.gd      카드·실린더·초상 절차 렌더링(_draw)
 godot/scripts/ui/table_screen.gd  테이블 화면(표현 전용, 의도를 시그널로 발신)
@@ -513,6 +514,8 @@ godot/test/screenshot.gd        실제 입력(마우스·키보드)으로 8개 �
 **웹 프로토타입과의 관계**: `src/rules.js`와 `rules.gd`는 같은 상태 기계이고, 같은 시드에서 **같은 순서의 같은 이벤트**를 낸다. 이를 회귀 테스트로 고정한다 — `tools/trace.js`가 5개 시드에서 1,121개 이벤트를 `godot/test/fixtures/traces.json`으로 뽑고, Godot 테스트 러너가 이를 재생해 필드 단위로 비교한다. 총 33,255건 검사, 실패 0.
 
 **크로스 엔진 트레이스 범위**: 시드 7개, 이벤트 1,986개. 딜러 7명 전원이 등장하고 게임오버·승리 두 종료를 모두 지난다. `tools/trace.js`가 이 커버리지를 스스로 검사해 깨지면 생성이 실패한다.
+
+**두 가지 배치**: 화면은 1280×720 설계 픽셀로 그려지고 전체가 창에 레터박스된다. 짧은 창(창 높이 600 px 미만)은 설계 높이를 420 px로 낮춰 설계 픽셀 하나의 값어치를 키우고, 설계 폭이 1100 px 미만이면 컴팩트 배치로 바꾼다. 컴팩트는 응답 버튼을 가로로 놓고 사기 도구를 사이드 패널의 2×2 격자로 옮기며 캡션을 접는다. 넓은 배치는 패널을 좌표로 놓지만 컴팩트는 컨테이너에 맡긴다 — 그 높이에서는 내용이 겨우 들어가서, 밴드를 잘못 잡으면 조용히 겹치기 때문이다. 폰 가로(844×390)에서 카드 54×74 px, 버튼 높이 45 px로 44 px 권장치를 넘긴다.
 
 **표현 계층 원칙**: `table_screen.gd`는 `Rules` 상태를 그리기만 하고 판단하지 않는다. 플레이어 의도는 시그널로 `main.gd`에 올라가고, 엔진 호출 결과는 이벤트 배열로 내려와 연출 큐(`process_events`)가 순서대로 소비한다. 화면 전환 중 발생한 콜백은 `run_token`으로 무효화한다.
 
