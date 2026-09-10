@@ -52,22 +52,40 @@ jobs:
             mv /tmp/templates/templates/* "$TPL/"
           fi
 
+      - name: Check the tag matches the project version
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          PROJECT_VERSION=$(sed -n 's/^config\/version="\(.*\)"$/\1/p' godot/project.godot)
+          echo "tag=$TAG project=$PROJECT_VERSION"
+          if [ "$TAG" != "v$PROJECT_VERSION" ]; then
+            echo "::error::tag $TAG does not match godot/project.godot version $PROJECT_VERSION"
+            exit 1
+          fi
+
+      - name: Install the export wrapper
+        run: bash .github/scripts/install-godot-export.sh
+
       - name: Export all presets
         run: |
           set -euo pipefail
           mkdir -p build/web build/windows build/linux
-          GODOT="$HOME/godot/godot"
-          timeout 600 "$GODOT" --headless --path godot --import || true
-          timeout 900 "$GODOT" --headless --path godot \
-            --export-release "Web" ../build/web/index.html || true
-          timeout 900 "$GODOT" --headless --path godot \
-            --export-release "Windows Desktop" ../build/windows/DeadMansHand.exe || true
-          timeout 900 "$GODOT" --headless --path godot \
-            --export-release "Linux" ../build/linux/DeadMansHand.x86_64 || true
+          timeout 600 "$HOME/godot/godot" --headless --path godot --import || true
+          "$RUNNER_TEMP/godot-export.sh" "Web" ../build/web/index.html
+          "$RUNNER_TEMP/godot-export.sh" "Windows Desktop" ../build/windows/DeadMansHand.exe
+          "$RUNNER_TEMP/godot-export.sh" "Linux" ../build/linux/DeadMansHand.x86_64
           test -s build/web/index.wasm
           test -s build/windows/DeadMansHand.exe
           test -s build/linux/DeadMansHand.x86_64
           chmod +x build/linux/DeadMansHand.x86_64
+
+      - name: Upload export logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-export-logs-release
+          path: ${{ runner.temp }}/exportlogs
+          if-no-files-found: ignore
 
       - name: Package
         run: |

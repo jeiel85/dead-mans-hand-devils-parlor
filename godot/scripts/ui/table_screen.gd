@@ -493,15 +493,22 @@ func render_hand(game: Rules) -> void:
 	_selected_label.text = I18n.t("hud.selected", {"n": selected.size()}) if hand.size() > 0 else ""
 
 
+## Which pair of action buttons belongs on screen. Showing the set the player
+## will actually use next keeps the dealer's turn from stacking all three, and
+## avoids the buttons jumping around between turns.
+## Player + respond phase   -> call/pass (their choice now)
+## Dealer + play phase      -> call/pass (their choice in a moment)
+## Everything else          -> play
+static func shows_respond_buttons(turn: String, round_phase: String) -> bool:
+	return (round_phase == "respond") == (turn == "player")
+
+
 func render_actions(game: Rules) -> void:
 	var la := game.legal_actions()
 	var r := game.round
-	# Show the button set the player will actually use next, so the dealer's
-	# turn keeps the same (disabled) buttons instead of stacking all three.
 	var respond_side := false
 	if not r.is_empty() and game.phase == Rules.PHASE_ROUND:
-		var mine: bool = r["turn"] == "player"
-		respond_side = (r["phase"] == "respond") == mine
+		respond_side = shows_respond_buttons(r["turn"], r["phase"])
 	_btn_play.visible = not respond_side
 	_btn_call.visible = respond_side
 	_btn_pass.visible = respond_side

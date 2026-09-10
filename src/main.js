@@ -32,6 +32,7 @@ import {
   relicsHtml,
   floorLabel,
   statsHtml,
+  showsRespondButtons,
 } from './render.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -804,13 +805,15 @@ function renderHand() {
 
 function renderActions() {
   const la = legalActions(game);
+  const r = game.round;
   $('#btn-play').disabled = !la.play || selected.size === 0;
   $('#btn-call').disabled = !la.call;
   $('#btn-pass').disabled = !la.pass;
-  $('#btn-play').hidden = !la.play && (la.call || la.pass);
-  $('#btn-call').hidden = la.play;
-  $('#btn-pass').hidden = la.play;
-  const r = game.round;
+  const respondSide =
+    !!r && game.phase === PHASE.ROUND && showsRespondButtons(r.turn, r.phase);
+  $('#btn-play').hidden = respondSide;
+  $('#btn-call').hidden = !respondSide;
+  $('#btn-pass').hidden = !respondSide;
   if (!r || game.phase !== PHASE.ROUND) return setHint('');
   if (r.turn !== 'player') return;
   if (la.play) setHint(t('hint.yourPlay', { rank: rankName(r.tableRank) }));

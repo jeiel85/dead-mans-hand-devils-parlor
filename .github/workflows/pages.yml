@@ -53,18 +53,26 @@ jobs:
             mv /tmp/templates/templates/* "$TPL/"
           fi
 
+      - name: Install the export wrapper
+        run: bash .github/scripts/install-godot-export.sh
+
       - name: Export web build
         run: |
           set -euo pipefail
           mkdir -p build/web
-          # Godot's headless editor can hang on shutdown after finishing its work,
-          # so cap each run and judge success by the produced files instead.
           timeout 600 "$HOME/godot/godot" --headless --path godot --import || true
-          timeout 900 "$HOME/godot/godot" --headless --path godot \
-            --export-release "Web" ../build/web/index.html || true
+          "$RUNNER_TEMP/godot-export.sh" "Web" ../build/web/index.html
           test -s build/web/index.wasm
           test -s build/web/index.pck
           test -s build/web/index.js
+
+      - name: Upload export logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-export-logs-pages
+          path: ${{ runner.temp }}/exportlogs
+          if-no-files-found: ignore
 
       - name: Assemble site
         run: |

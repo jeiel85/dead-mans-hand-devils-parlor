@@ -9,6 +9,9 @@ var timer_enabled: bool = true
 var best_floor: int = 0
 var runs_played: int = 0
 var victories: int = 0
+## True after a failed write (private browsing, read-only profile, full disk).
+## The settings screen shows this instead of silently forgetting the choice.
+var write_failed: bool = false
 
 
 func _ready() -> void:
@@ -38,8 +41,10 @@ func load_settings() -> void:
 func save_settings() -> void:
 	var f := FileAccess.open(PATH, FileAccess.WRITE)
 	if f == null:
+		write_failed = true
 		push_warning("settings not saved: %s" % FileAccess.get_open_error())
 		return
+	write_failed = false
 	f.store_string(JSON.stringify({
 		"lang": lang, "sound": sound, "timer": timer_enabled,
 		"bestFloor": best_floor, "runsPlayed": runs_played, "victories": victories,

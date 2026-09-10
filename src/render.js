@@ -6,6 +6,18 @@ import { nextChamberOdds, cheatDetectChance, legalActions } from './rules.js';
 
 const RANK_GLYPH = { K: '♚', Q: '♛', A: 'A', J: '★' };
 
+/**
+ * Which pair of action buttons belongs on screen. Showing the set the player
+ * will actually use next keeps the dealer's turn from stacking all three, and
+ * avoids the buttons jumping around between turns.
+ * Player + respond phase -> call/pass (their choice now)
+ * Dealer + play phase    -> call/pass (their choice in a moment)
+ * Everything else        -> play
+ */
+export function showsRespondButtons(turn, roundPhase) {
+  return (roundPhase === 'respond') === (turn === 'player');
+}
+
 export function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }

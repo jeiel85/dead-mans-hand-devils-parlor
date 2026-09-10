@@ -459,7 +459,7 @@ const en = {
   'log.timeout': 'Time up — auto {action}',
 };
 
-const DICT = { ko, en };
+export const DICT = { ko, en };
 let current = 'ko';
 
 export function setLang(lang) {
@@ -473,5 +473,49 @@ export function t(key, params = {}) {
   let s = DICT[current][key] ?? DICT.ko[key] ?? key;
   if (Array.isArray(s)) return s;
   for (const [k, v] of Object.entries(params)) s = s.split(`{${k}}`).join(String(v));
-  return s;
+  return applyJosa(s);
+}
+
+// --- Korean particles --------------------------------------------------------
+// Strings carry both forms ("{who}이(가)"); after interpolation the right one is
+// picked from the preceding syllable's final consonant (받침).
+// Pairs are [token, form after 받침, form after a vowel].
+export const JOSA_PAIRS = [
+  ['이(가)', '이', '가'],
+  ['을(를)', '을', '를'],
+  ['은(는)', '은', '는'],
+  ['와(과)', '과', '와'],
+  ['으로(로)', '으로', '로'],
+];
+
+export const BATCHIM = { UNKNOWN: -1, NONE: 0, YES: 1, RIEUL: 2 };
+
+/** -1 when not a Hangul syllable: callers leave the text as written. */
+export function batchimOf(ch) {
+  if (!ch) return BATCHIM.UNKNOWN;
+  const c = ch.codePointAt(0);
+  if (c < 0xac00 || c > 0xd7a3) return BATCHIM.UNKNOWN;
+  const finalJamo = (c - 0xac00) % 28;
+  if (finalJamo === 0) return BATCHIM.NONE;
+  return finalJamo === 8 ? BATCHIM.RIEUL : BATCHIM.YES;
+}
+
+export function applyJosa(text) {
+  let out = text;
+  for (const [token, withBatchim, withoutBatchim] of JOSA_PAIRS) {
+    let idx = out.indexOf(token);
+    while (idx !== -1) {
+      const kind = idx > 0 ? batchimOf(out[idx - 1]) : BATCHIM.UNKNOWN;
+      if (kind === BATCHIM.UNKNOWN) {
+        idx = out.indexOf(token, idx + token.length);
+        continue;
+      }
+      let rep = kind === BATCHIM.NONE ? withoutBatchim : withBatchim;
+      // 으로/로 also takes the vowel form after ㄹ ("서울로", not "서울으로").
+      if (token === '으로(로)' && kind === BATCHIM.RIEUL) rep = withoutBatchim;
+      out = out.slice(0, idx) + rep + out.slice(idx + token.length);
+      idx = out.indexOf(token, idx + rep.length);
+    }
+  }
+  return out;
 }

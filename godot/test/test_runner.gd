@@ -63,6 +63,9 @@ func _run_all() -> void:
 	_test_ai_bounds()
 	_test_fuzz()
 	_test_trace_replay()
+	_test_josa()
+	_test_action_buttons()
+	_test_project_config()
 
 
 # xmur3+mulberry32 reference values produced by node: createRng('TEST01').next() x3
@@ -489,3 +492,79 @@ func _test_trace_replay() -> void:
 		_eq(s.floor_index, int(fin["floor"]), "%s final floor" % seed_text)
 		_eq(s.player["hp"], int(fin["hp"]), "%s final hp" % seed_text)
 		_eq(s.round_number, int(fin["rounds"]), "%s final rounds" % seed_text)
+
+
+# ---------------------------------------------------------------------------
+# Presentation and packaging invariants (regressions found shipping v1.0.0)
+# ---------------------------------------------------------------------------
+
+func _test_josa() -> void:
+	# 받침 decides the particle; a name we can't classify stays as written.
+	_eq(I18n.apply_josa("잭이(가) 온다"), "잭이 온다", "josa: 받침 -> 이")
+	_eq(I18n.apply_josa("당신이(가) 온다"), "당신이 온다", "josa: ㄴ 받침 -> 이")
+	_eq(I18n.apply_josa("에이스이(가) 온다"), "에이스가 온다", "josa: 모음 -> 가")
+	_eq(I18n.apply_josa("킹을(를) 냈다"), "킹을 냈다", "josa: 받침 -> 을")
+	_eq(I18n.apply_josa("퀸을(를) 냈다"), "퀸을 냈다", "josa: ㄴ 받침 -> 을")
+	_eq(I18n.apply_josa("조커을(를) 냈다"), "조커를 냈다", "josa: 모음 -> 를")
+	_eq(I18n.apply_josa("잭은(는) 취했다"), "잭은 취했다", "josa: 받침 -> 은")
+	_eq(I18n.apply_josa("조커은(는) 취했다"), "조커는 취했다", "josa: 모음 -> 는")
+	_eq(I18n.apply_josa("잭와(과) 함께"), "잭과 함께", "josa: 받침 -> 과")
+	_eq(I18n.apply_josa("조커와(과) 함께"), "조커와 함께", "josa: 모음 -> 와")
+	_eq(I18n.apply_josa("서울으로(로) 간다"), "서울로 간다", "josa: ㄹ 받침 -> 로")
+	_eq(I18n.apply_josa("지하으로(로) 간다"), "지하로 간다", "josa: 모음 -> 로")
+	_eq(I18n.apply_josa("빈민가골목으로(로) 간다"), "빈민가골목으로 간다", "josa: 받침 -> 으로")
+	_eq(I18n.apply_josa("Jack이(가) 온다"), "Jack이(가) 온다", "josa: 한글이 아니면 그대로")
+	_eq(I18n.apply_josa("이(가) 온다"), "이(가) 온다", "josa: 앞 글자가 없으면 그대로")
+	_eq(I18n.apply_josa("잭이(가) 잭이(가)"), "잭이 잭이", "josa: 같은 토큰이 여러 번")
+	_eq(I18n.batchim_of(""), -1, "batchim: 빈 문자열")
+	_eq(I18n.batchim_of("A"), -1, "batchim: 라틴 문자")
+	_eq(I18n.batchim_of("가"), 0, "batchim: 받침 없음")
+	_eq(I18n.batchim_of("각"), 1, "batchim: 받침 있음")
+	_eq(I18n.batchim_of("갈"), 2, "batchim: ㄹ 받침")
+	# Every Korean string keeps both forms in the dictionary, so no live string
+	# can ship with an unresolved "이(가)" once it goes through t().
+	for key in I18n.KO.keys():
+		var v: Variant = I18n.KO[key]
+		if typeof(v) != TYPE_STRING:
+			continue
+		for pair in I18n.JOSA_PAIRS:
+			var token: String = pair[0]
+			var idx: int = v.find(token)
+			if idx <= 0:
+				continue
+			var prev: String = v.substr(idx - 1, 1)
+			# Resolvable means: a Hangul syllable, or a placeholder that gets
+			# substituted before apply_josa runs. Anything else ships as "이(가)".
+			_check(I18n.batchim_of(prev) != -1 or prev == "}",
+				"KO[%s]: %s 앞 글자('%s')가 해석 가능해야 한다" % [key, token, prev])
+
+
+func _test_action_buttons() -> void:
+	# The dealer's turn must not stack play + call + pass on screen.
+	_eq(TableScreen.shows_respond_buttons("player", "respond"), true, "buttons: 내 응답 차례")
+	_eq(TableScreen.shows_respond_buttons("player", "play"), false, "buttons: 내 제출 차례")
+	_eq(TableScreen.shows_respond_buttons("dealer", "play"), true, "buttons: 딜러 제출 = 곧 내 응답")
+	_eq(TableScreen.shows_respond_buttons("dealer", "respond"), false, "buttons: 딜러 응답 = 곧 내 제출")
+
+
+func _test_project_config() -> void:
+	# v1.0.0 shipped with a user:// that could not be created because the project
+	# name contains an apostrophe; the custom dir name is what fixed it.
+	_check(bool(ProjectSettings.get_setting("application/config/use_custom_user_dir", false)),
+		"project: use_custom_user_dir 켜져 있어야 한다")
+	var dir_name := str(ProjectSettings.get_setting("application/config/custom_user_dir_name", ""))
+	_check(dir_name != "", "project: custom_user_dir_name 있어야 한다")
+	_check(not dir_name.contains("'") and not dir_name.contains("\""),
+		"project: custom_user_dir_name 에 따옴표가 없어야 한다")
+	# user:// must actually be writable, or settings and logs silently vanish.
+	var probe := "user://__probe.tmp"
+	var f := FileAccess.open(probe, FileAccess.WRITE)
+	_check(f != null, "user:// 쓰기 가능해야 한다 (err %d)" % FileAccess.get_open_error())
+	if f != null:
+		f.store_string("ok")
+		f.close()
+		_eq(FileAccess.get_file_as_string(probe), "ok", "user:// 읽기 확인")
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(probe))
+	# The title screen reads its version from here; empty means the build lies.
+	var ver := str(ProjectSettings.get_setting("application/config/version", ""))
+	_check(ver.split(".").size() == 3, "project: config/version 은 x.y.z 형식이어야 한다 (got '%s')" % ver)

@@ -50,6 +50,7 @@ const KO := {
 	"hud.revealedYou": "저주: 이번 라운드 당신의 패가 딜러에게 보인다",
 	"hud.revealedDealer": "저주: 이번 라운드 딜러의 패가 당신에게 보인다",
 	"hud.peeked": "표식 카드: 딜러가 {rank}을(를) 들고 있다",
+	"set.saveFailed": "이 브라우저·환경에서는 설정을 저장할 수 없습니다. 이번 판에만 적용됩니다.",
 	"hud.pactArmed": "계약서 발동 중: 이번 제출이 통하면 상대 -2, 들키면 즉사",
 	"hint.yourPlay": "카드 1~3장을 골라 뒤집어 내려놓으시오. 주장: 전부 {rank}.",
 	"hint.yourRespond": "딜러가 \"{rank} {n}장\"을 내려놓았다. 의심하거나 믿으시오.",
@@ -359,6 +360,64 @@ func t(key: String, params: Dictionary = {}) -> String:
 	var out: String = s
 	for k in params.keys():
 		out = out.replace("{%s}" % k, str(params[k]))
+	return apply_josa(out)
+
+
+# --- Korean particles ---------------------------------------------------------
+# Strings are written with both forms ("{who}이(가)"); after interpolation the
+# right one is picked from the preceding syllable's final consonant (받침).
+# Pairs are [token, form after 받침, form after a vowel].
+const JOSA_PAIRS: Array = [
+	["이(가)", "이", "가"],
+	["을(를)", "을", "를"],
+	["은(는)", "은", "는"],
+	["와(과)", "과", "와"],
+	["으로(로)", "으로", "로"],
+]
+
+const _BATCHIM_UNKNOWN := -1
+const _BATCHIM_NONE := 0
+const _BATCHIM_YES := 1
+const _BATCHIM_RIEUL := 2
+
+
+static func batchim_of(ch: String) -> int:
+	## -1 when the character is not a Hangul syllable and the form can't be
+	## decided (Latin names, digits, punctuation) — callers leave the text alone.
+	if ch.is_empty():
+		return _BATCHIM_UNKNOWN
+	var c := ch.unicode_at(0)
+	if c < 0xAC00 or c > 0xD7A3:
+		return _BATCHIM_UNKNOWN
+	var final_jamo := (c - 0xAC00) % 28
+	if final_jamo == 0:
+		return _BATCHIM_NONE
+	if final_jamo == 8:
+		return _BATCHIM_RIEUL
+	return _BATCHIM_YES
+
+
+static func apply_josa(text: String) -> String:
+	var out := text
+	for pair in JOSA_PAIRS:
+		var token: String = pair[0]
+		var idx := out.find(token)
+		while idx != -1:
+			var kind := _BATCHIM_UNKNOWN
+			if idx > 0:
+				kind = batchim_of(out.substr(idx - 1, 1))
+			if kind == _BATCHIM_UNKNOWN:
+				# Leave "이(가)" as written rather than guess wrong.
+				idx = out.find(token, idx + token.length())
+				continue
+			var rep: String = pair[2]
+			if kind != _BATCHIM_NONE:
+				rep = pair[1]
+			# 으로/로 also takes the vowel form after ㄹ ("서울로", not "서울으로").
+			if token == "으로(로)" and kind == _BATCHIM_RIEUL:
+				rep = pair[2]
+			out = out.substr(0, idx) + rep + out.substr(idx + token.length())
+			idx = out.find(token, idx + rep.length())
 	return out
 
 

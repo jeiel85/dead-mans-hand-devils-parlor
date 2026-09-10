@@ -4,7 +4,9 @@ extends Control
 
 signal modal_continue
 
-const VERSION := "1.0.0"
+## Single source of truth is project.godot's application/config/version, so the
+## title screen can't drift from the tag the release workflow builds.
+var VERSION: String = str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
 
 var game: Rules
 var table: TableScreen
@@ -224,6 +226,8 @@ func show_settings() -> void:
 		table.render_static()
 		show_settings())
 	r3.add_child(tm)
+	if Save.write_failed:
+		modal.text(I18n.t("set.saveFailed"), 12, UIKit.C_RED)
 	var r4 := modal.row()
 	var close := UIKit.button(I18n.t("btn.close"), "primary", 15)
 	close.pressed.connect(func(): _return_from_secondary(prev))
