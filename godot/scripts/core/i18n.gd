@@ -51,6 +51,8 @@ const KO := {
 	"hud.revealedDealer": "저주: 이번 라운드 딜러의 패가 당신에게 보인다",
 	"hud.peeked": "표식 카드: 딜러가 {rank}을(를) 들고 있다",
 	"set.saveFailed": "이 브라우저·환경에서는 설정을 저장할 수 없습니다. 이번 판에만 적용됩니다.",
+	"rotate.title": "화면을 가로로",
+	"rotate.body": "테이블은 가로 화면에 맞춰 짜여 있습니다. 기기를 돌리면 계속 진행됩니다.",
 	"hud.pactArmed": "계약서 발동 중: 이번 제출이 통하면 상대 -2, 들키면 즉사",
 	"hint.yourPlay": "카드 1~3장을 골라 뒤집어 내려놓으시오. 주장: 전부 {rank}.",
 	"hint.yourRespond": "딜러가 \"{rank} {n}장\"을 내려놓았다. 의심하거나 믿으시오.",

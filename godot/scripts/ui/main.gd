@@ -15,7 +15,16 @@ var flash: ColorRect
 var selected: Dictionary = {}
 var busy := false
 var run_token := 0
-var timer_deadline_ms := -1
+## Seconds left in the challenge window, or < 0 when no timer is running.
+## Counted down from frame delta rather than the wall clock: a hidden browser
+## tab stops producing frames, and reading the wall clock on return burned the
+## whole window at once and auto-answered for the player.
+## The three reward cards currently on screen; the screenshot runner clicks
+## these to check that taking a reward really advances the floor.
+var reward_buttons: Array = []
+var portrait_notice: Control
+var timer_left := -1.0
+var timer_paused := false
 var _last_tick_sec := -1
 var _reveal_ready := false
 
@@ -29,6 +38,7 @@ func _ready() -> void:
 	flash.color = Color(0, 0, 0, 0)
 	add_child(flash)
 	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_build_portrait_notice()
 	modal = Modal.new()
 	add_child(modal)
 	table.play_pressed.connect(on_play)
@@ -59,6 +69,9 @@ func _ready() -> void:
 
 
 func _on_language_changed() -> void:
+	if portrait_notice != null:
+		portrait_notice.get_meta("title").text = I18n.t("rotate.title")
+		portrait_notice.get_meta("body").text = I18n.t("rotate.body")
 	table.render_static()
 	if game != null:
 		table.render(game)
@@ -106,10 +119,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			on_respond("pass")
 
 
-func _process(_delta: float) -> void:
-	if timer_deadline_ms < 0:
+func _process(delta: float) -> void:
+	if timer_left < 0.0 or game == null:
 		return
-	var left := float(timer_deadline_ms - Time.get_ticks_msec()) / 1000.0
+	timer_left = timer_step(timer_left, delta, timer_paused)
+	var left := timer_left
 	var secs := int(ceil(maxf(0.0, left)))
 	table.show_timer(maxf(0.0, left), GameData.CHALLENGE_SECONDS)
 	if secs != _last_tick_sec:
@@ -133,8 +147,7 @@ func _process(_delta: float) -> void:
 
 func show_title() -> void:
 	stop_timer()
-	run_token += 1
-	busy = false
+	_abandon_run()
 	table.visible = false
 	var body := modal.open("title")
 	modal.set_width(620)
@@ -288,9 +301,20 @@ func _return_from_secondary(prev: String) -> void:
 # Run lifecycle
 # ---------------------------------------------------------------------------
 
+## Invalidate the running coroutines and release anything blocked on a modal,
+## so a coroutine parked on `await modal_continue` resumes, sees the new token
+## and returns instead of sitting on the old run forever.
+func _abandon_run() -> void:
+	run_token += 1
+	busy = false
+	if _reveal_ready:
+		_reveal_ready = false
+		modal_continue.emit()
+
+
 func start_run(seed_text: String) -> void:
 	stop_timer()
-	run_token += 1
+	_abandon_run()
 	game = Rules.new(seed_text)
 	table.visible = true
 	selected.clear()
@@ -371,12 +395,13 @@ func schedule_next(token: int) -> void:
 
 
 func _dealer_turn(token: int) -> void:
-	await get_tree().create_timer(0.7 + randf() * 0.7).timeout
-	if token != run_token or game == null or modal.visible and modal.kind in ["menu", "settings", "help"]:
-		# paused: retry after the menu closes
-		if token == run_token and game != null:
-			await get_tree().create_timer(0.5).timeout
-			_dealer_turn(token)
+	if not await _pause(0.7 + randf() * 0.7, token):
+		return
+	if modal.visible and modal.kind in ["menu", "settings", "help"]:
+		# paused behind a menu: look again once it closes
+		if not await _pause(0.5, token):
+			return
+		_dealer_turn(token)
 		return
 	var res := game.dealer_act()
 	match res.get("action", ""):
@@ -476,21 +501,96 @@ func on_cheat(id: String) -> void:
 # Challenge timer
 # ---------------------------------------------------------------------------
 
+## Largest slice of a single frame the timer will accept. Normal frames are far
+## below it; a frame that took longer means the game was not on screen (hidden
+## tab, dragged window, suspended laptop) and must not eat the player's window.
+const TIMER_MAX_STEP := 0.25
+
+
+static func timer_step(left: float, delta: float, paused: bool) -> float:
+	if paused:
+		return left
+	return left - minf(maxf(delta, 0.0), TIMER_MAX_STEP)
+
+
 func start_timer() -> void:
-	if timer_deadline_ms >= 0:
+	if timer_left >= 0.0:
 		return
-	timer_deadline_ms = Time.get_ticks_msec() + GameData.CHALLENGE_SECONDS * 1000
+	timer_left = float(GameData.CHALLENGE_SECONDS)
+	timer_paused = false
 	_last_tick_sec = GameData.CHALLENGE_SECONDS
 
 
 func stop_timer() -> void:
-	timer_deadline_ms = -1
+	timer_left = -1.0
+	timer_paused = false
 	table.hide_timer()
+
+
+func _notification(what: int) -> void:
+	# Losing focus pauses the countdown; the player is not looking at the table.
+	match what:
+		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+			timer_paused = true
+		NOTIFICATION_APPLICATION_FOCUS_IN, NOTIFICATION_WM_WINDOW_FOCUS_IN:
+			timer_paused = false
 
 
 # ---------------------------------------------------------------------------
 # Events → log / sfx / modals
 # ---------------------------------------------------------------------------
+
+## The table is a fixed 1280x720 layout, letterboxed by stretch aspect "keep".
+## In portrait that scales everything to roughly a third (a card lands near
+## 24x34 px on a phone), which is not playable, so ask for landscape instead of
+## pretending it works.
+static func wants_landscape(window_size: Vector2i) -> bool:
+	return window_size.y > window_size.x
+
+
+func _build_portrait_notice() -> void:
+	portrait_notice = Control.new()
+	portrait_notice.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(portrait_notice)
+	portrait_notice.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var dim := ColorRect.new()
+	dim.color = UIKit.C_BG
+	portrait_notice.add_child(dim)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	portrait_notice.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	var title := UIKit.label(I18n.t("rotate.title"), 30, UIKit.C_BRASS, UIKit.serif())
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var body := UIKit.wrap(UIKit.label(I18n.t("rotate.body"), 15, UIKit.C_PAPER_DIM))
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.custom_minimum_size = Vector2(420, 0)
+	box.add_child(title)
+	box.add_child(body)
+	center.add_child(box)
+	portrait_notice.visible = false
+	portrait_notice.set_meta("title", title)
+	portrait_notice.set_meta("body", body)
+	get_window().size_changed.connect(_update_orientation)
+	_update_orientation()
+
+
+func _update_orientation() -> void:
+	if portrait_notice == null:
+		return
+	portrait_notice.visible = wants_landscape(get_window().size)
+
+
+## Wait `sec`, then report whether this run is still current. Every animation
+## pause goes through here so an abandoned run (new game, back to title) stops
+## at the next beat instead of finishing its effects over the new one.
+func _pause(sec: float, token: int) -> bool:
+	await get_tree().create_timer(sec).timeout
+	return token == run_token and game != null
+
 
 func process_events(evs: Array, token: int) -> void:
 	busy = true
@@ -530,26 +630,36 @@ func process_events(evs: Array, token: int) -> void:
 					Audio.play("caught")
 					table.set_speech(I18n.t("say.cheatCaught"))
 					table.render(game)
-					await get_tree().create_timer(0.6).timeout
+					if not await _pause(0.6, token):
+						busy = false
+						return
 				else:
 					Audio.play("chip")
 			"fire":
 				table.render(game)
 				Audio.play("hammer")
-				await get_tree().create_timer(0.4).timeout
+				if not await _pause(0.4, token):
+					busy = false
+					return
 				_fire_fx(ev)
-				await get_tree().create_timer(0.5).timeout
+				if not await _pause(0.5, token):
+					busy = false
+					return
 			"reload":
 				Audio.play("reload")
 				table.render(game)
-				await get_tree().create_timer(0.5).timeout
+				if not await _pause(0.5, token):
+					busy = false
+					return
 			"play":
 				if ev["by"] == "dealer":
 					Audio.play("card")
 			"pactStrike":
 				Audio.play("hurt")
 				table.render(game)
-				await get_tree().create_timer(0.5).timeout
+				if not await _pause(0.5, token):
+					busy = false
+					return
 			"hp":
 				if ev["to"] > ev["from"]:
 					Audio.play("heal")
@@ -558,7 +668,9 @@ func process_events(evs: Array, token: int) -> void:
 				table.selected = selected
 				table.render(game)
 				Audio.play("card")
-				await get_tree().create_timer(0.25).timeout
+				if not await _pause(0.25, token):
+					busy = false
+					return
 		if token != run_token:
 			busy = false
 			return
@@ -604,13 +716,11 @@ func show_reveal(ev: Dictionary, fires: Array, extra: Array, token: int) -> void
 	cont.visible = false
 	cont.pressed.connect(func(): modal_continue.emit())
 	r.add_child(cont)
-	await get_tree().create_timer(0.9).timeout
-	if token != run_token:
+	if not await _pause(0.9, token):
 		return
 	for f in fires:
 		Audio.play("hammer")
-		await get_tree().create_timer(0.45).timeout
-		if token != run_token:
+		if not await _pause(0.45, token):
 			return
 		_fire_fx(f)
 		var key: String = "reveal.result.misfire" if f["effect"] == "misfire" else "reveal.result." + str(f["bullet"])
@@ -618,7 +728,8 @@ func show_reveal(ev: Dictionary, fires: Array, extra: Array, token: int) -> void
 		var l := UIKit.label(I18n.t(key, {"who": I18n.who(f["who"], game.dealer["id"])}), 18, col, UIKit.serif())
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		results.add_child(l)
-		await get_tree().create_timer(0.3).timeout
+		if not await _pause(0.3, token):
+			return
 	for x in extra:
 		var l2 := UIKit.label(x[0], 14, x[1])
 		l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -635,6 +746,7 @@ func show_reveal(ev: Dictionary, fires: Array, extra: Array, token: int) -> void
 func show_reward() -> void:
 	if game == null or game.phase != Rules.PHASE_REWARD:
 		return
+	reward_buttons.clear()
 	var body := modal.open("reward")
 	modal.set_width(700)
 	modal.title(I18n.t("reward.title"), 26)
@@ -672,6 +784,7 @@ func show_reward() -> void:
 			game.choose_reward(i)
 			after_engine_step())
 		row.add_child(b)
+		reward_buttons.append(b)
 	var hp := CenterContainer.new()
 	hp.add_child(UIKit.hearts(game.player["hp"], game.player["maxHp"]))
 	modal.add(hp)

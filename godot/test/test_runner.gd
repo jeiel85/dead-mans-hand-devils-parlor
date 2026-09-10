@@ -66,6 +66,9 @@ func _run_all() -> void:
 	_test_josa()
 	_test_action_buttons()
 	_test_project_config()
+	_test_challenge_timer()
+	_test_orientation()
+	_test_font_coverage()
 
 
 # xmur3+mulberry32 reference values produced by node: createRng('TEST01').next() x3
@@ -568,3 +571,69 @@ func _test_project_config() -> void:
 	# The title screen reads its version from here; empty means the build lies.
 	var ver := str(ProjectSettings.get_setting("application/config/version", ""))
 	_check(ver.split(".").size() == 3, "project: config/version 은 x.y.z 형식이어야 한다 (got '%s')" % ver)
+
+
+func _test_challenge_timer() -> void:
+	# The challenge window is counted from frame delta, clamped, so a browser tab
+	# that was hidden for a minute cannot burn the whole window on the frame it
+	# comes back and answer for the player.
+	var main_script: GDScript = load("res://scripts/ui/main.gd")
+	var step: float = main_script.TIMER_MAX_STEP
+	_eq(main_script.timer_step(15.0, 0.016, false), 15.0 - 0.016, "timer: 보통 프레임은 그대로 차감")
+	_eq(main_script.timer_step(15.0, 60.0, false), 15.0 - step, "timer: 긴 공백은 한 스텝까지만")
+	_eq(main_script.timer_step(15.0, 0.5, false), 15.0 - step, "timer: 스텝 상한 적용")
+	_eq(main_script.timer_step(15.0, 0.25, true), 15.0, "timer: 일시정지 중에는 줄지 않는다")
+	_eq(main_script.timer_step(15.0, -3.0, false), 15.0, "timer: 음수 델타는 되감지 않는다")
+	# 15 s of real time still takes 15 s of frames at any sane frame rate.
+	var left := float(GameData.CHALLENGE_SECONDS)
+	var frames := 0
+	while left > 0.0 and frames < 100000:
+		left = float(main_script.timer_step(left, 1.0 / 60.0, false))
+		frames += 1
+	_eq(frames, GameData.CHALLENGE_SECONDS * 60, "timer: 60fps에서 정확히 15초")
+
+
+func _test_orientation() -> void:
+	# Portrait scales the fixed 1280x720 table to about a third; the game asks
+	# for landscape rather than rendering unusable 24x34 px cards.
+	var main_script: GDScript = load("res://scripts/ui/main.gd")
+	_eq(main_script.wants_landscape(Vector2i(390, 844)), true, "orientation: 폰 세로")
+	_eq(main_script.wants_landscape(Vector2i(844, 390)), false, "orientation: 폰 가로")
+	_eq(main_script.wants_landscape(Vector2i(1280, 720)), false, "orientation: 데스크톱")
+	_eq(main_script.wants_landscape(Vector2i(720, 720)), false, "orientation: 정사각형은 그대로 진행")
+
+
+func _collect_chars() -> Dictionary:
+	## Every character the UI can put on screen from its own strings, plus the
+	## digits and symbols the code formats numbers with.
+	var seen := {}
+	for dict in [I18n.KO, I18n.EN]:
+		for key in dict.keys():
+			var v: Variant = dict[key]
+			var texts: Array = v if typeof(v) == TYPE_ARRAY else [v]
+			for tv in texts:
+				var text := str(tv)
+				for i in range(text.length()):
+					seen[text.unicode_at(i)] = true
+	# Card pips (crowns, star) are drawn as shapes by CardView, not as glyphs, so
+	# only characters that really go through draw_string belong here.
+	for extra in ["0123456789/×·%-+.,:()'\"?!→ ", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"]:
+		for i in range(extra.length()):
+			seen[extra.unicode_at(i)] = true
+	return seen
+
+
+func _test_font_coverage() -> void:
+	## The bundled fonts are subsets. Anything the dictionaries can render must be
+	## in them, or a future string silently ships as tofu boxes.
+	var chars := _collect_chars()
+	for pair in [["serif", UIKit.serif()], ["sans", UIKit.sans()]]:
+		var label: String = pair[0]
+		var font: Font = pair[1]
+		var missing := ""
+		for c in chars.keys():
+			if c < 32:
+				continue
+			if not font.has_char(c):
+				missing += char(c)
+		_check(missing.is_empty(), "font %s: 빠진 글자 [%s]" % [label, missing])

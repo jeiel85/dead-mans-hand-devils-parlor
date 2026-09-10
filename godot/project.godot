@@ -8,7 +8,7 @@ config_version=5
 
 config/name="Dead Man's Hand: Devil's Parlor"
 config/description="블러핑 카드 × 러시안 룰렛 × 로그라이크. 악마의 살롱 지하 7층을 내려가며 딜러 보스를 꺾는다."
-config/version="1.0.1"
+config/version="1.0.2"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="DeadMansHand"
 run/main_scene="res://scenes/main.tscn"

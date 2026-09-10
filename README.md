@@ -44,7 +44,7 @@
 | 배포 | [`/play/`](https://jeiel85.github.io/dead-mans-hand-devils-parlor/play/) · Windows · Linux | [사이트 루트](https://jeiel85.github.io/dead-mans-hand-devils-parlor/) |
 | 역할 | 앞으로의 개발이 얹히는 본체 | 룰·밸런스를 빠르게 검증한 원본, 교차 검증 기준 |
 
-**두 엔진이 같은 게임인지 어떻게 아는가.** `tools/trace.js`가 JS 엔진에서 5개 시드로 1,121개 이벤트를 뽑아 `godot/test/fixtures/traces.json`에 고정합니다. Godot 테스트 러너가 같은 시드로 같은 액션을 재생하며 이벤트를 필드 단위로 비교합니다. 룰·AI 단위 테스트와 300런 퍼즈까지 합쳐 **33,255건 검사, 실패 0**입니다. 수치를 한쪽에서만 바꾸면 테스트가 깨집니다.
+**두 엔진이 같은 게임인지 어떻게 아는가.** `tools/trace.js`가 JS 엔진에서 7개 시드로 1,986개 이벤트를 뽑아 `godot/test/fixtures/traces.json`에 고정합니다. 시드는 딜러 7명 전원과 게임오버·승리 두 종료를 지나도록 골랐고, 커버리지가 깨지면 생성 단계에서 실패합니다. Godot 테스트 러너가 같은 시드로 같은 액션을 재생하며 이벤트를 필드 단위로 비교합니다. 룰·AI 단위 테스트와 300런 퍼즈까지 합쳐 **33,315건 검사, 실패 0**입니다. 수치를 한쪽에서만 바꾸면 테스트가 깨집니다.
 
 ## 화면
 
@@ -52,6 +52,7 @@
 | :-- | :-- |
 | ![타이틀](docs/shots/01-title.png) | ![층 진입](docs/shots/02-floor-intro.png) |
 | ![테이블](docs/shots/03-table.png) | ![공개](docs/shots/06-reveal.png) |
+| ![승리](docs/shots/11-victory.png) | 화면은 `godot --path godot res://test/screenshot.tscn`으로 자동 캡처됩니다. |
 
 ## 30초 룰
 
@@ -120,7 +121,8 @@ node tools/simulate.js 3000 both  # 밸런스 시뮬레이션 (naive / sharp 봇
 godot --path godot                                   # 실행
 godot --headless --path godot --import               # class_name 캐시 생성 (최초 1회)
 godot --headless --path godot res://test/test_runner.tscn   # 33,255건 검사
-godot --path godot res://test/screenshot.tscn        # build/shots/에 화면 캡처
+godot --path godot res://test/screenshot.tscn        # build/shots/에 12개 화면 캡처 + 단언
+python tools/subset-fonts.py                         # 문자열을 바꾼 뒤 폰트 서브셋 갱신
 ```
 
 빌드(익스포트 템플릿 필요):

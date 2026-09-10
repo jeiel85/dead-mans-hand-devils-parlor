@@ -17,7 +17,7 @@ import {
   legalActions,
   PHASE,
 } from '../src/rules.js';
-import { JOKER } from '../src/data.js';
+import { JOKER, DEALERS } from '../src/data.js';
 
 // Scripted player policy: deterministic, exercises cheats, plays and calls.
 function scriptedTurn(s, step) {
@@ -57,8 +57,16 @@ function compactEvent(e) {
   return out;
 }
 
+// Seeds are fixed, not searched at generation time, so the fixture is stable and
+// reviewable. The last two were picked to close coverage gaps the first five
+// left: T2326 walks the scripted policy all the way to B7 (so every dealer's
+// gimmick appears in a trace) and T1278 ends in victory (so the win transition
+// is traced, not just game over). assertCoverage below fails generation if a
+// future edit loses either property.
+const SEEDS = ['TRACE-A', 'TRACE-B', 'TRACE-C', 'DEMO01', 'E2E-01', 'T2326', 'T1278'];
+
 const traces = [];
-for (const seed of ['TRACE-A', 'TRACE-B', 'TRACE-C', 'DEMO01', 'E2E-01']) {
+for (const seed of SEEDS) {
   const s = createRun({ seed });
   startFloor(s);
   beginRound(s);
@@ -91,4 +99,29 @@ for (const seed of ['TRACE-A', 'TRACE-B', 'TRACE-C', 'DEMO01', 'E2E-01']) {
     events,
   });
 }
+
+function assertCoverage(all) {
+  const seenDealers = new Set();
+  const seenPhases = new Set();
+  for (const tr of all) {
+    seenPhases.add(tr.final.phase);
+    for (const e of tr.events) if (e.dealer) seenDealers.add(e.dealer);
+  }
+  const allDealers = Object.keys(DEALERS);
+  const missingDealers = allDealers.filter((id) => !seenDealers.has(id));
+  const missingPhases = ['gameOver', 'victory'].filter((p) => !seenPhases.has(p));
+  const problems = [];
+  if (missingDealers.length) problems.push(`dealers never reached: ${missingDealers.join(', ')}`);
+  if (missingPhases.length) problems.push(`run endings never reached: ${missingPhases.join(', ')}`);
+  if (problems.length) {
+    process.stderr.write(['trace.js: coverage gap', ...problems].join('\n  ') + '\n');
+    process.exit(1);
+  }
+  process.stderr.write(
+    `trace.js: ${all.length} seeds, ${all.reduce((n, t) => n + t.events.length, 0)} events, `
+    + `${seenDealers.size}/${allDealers.length} dealers, endings: ${[...seenPhases].join('+')}\n`,
+  );
+}
+
+assertCoverage(traces);
 process.stdout.write(JSON.stringify(traces));

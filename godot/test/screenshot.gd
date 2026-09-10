@@ -111,4 +111,39 @@ func _run() -> void:
 	main.show_reward()
 	await _wait(0.3)
 	await _shot("08-reward.png")
+
+	# Taking a reward must actually move the run to the next floor and show that
+	# floor's dealer, not just close the modal.
+	var before: int = main.game.current_floor()["level"]
+	await _click(_center(main.reward_buttons[0]))
+	await _wait(1.2)
+	assert(main.game.phase == Rules.PHASE_FLOOR_INTRO,
+		"choosing a reward must lead to the next floor intro (phase %s)" % main.game.phase)
+	var after: int = main.game.current_floor()["level"]
+	assert(after == before + 1, "floor must advance %d -> %d (got %d)" % [before, before + 1, after])
+	assert(main.modal.kind == "intro", "the next floor intro must be on screen")
+	await _shot("09-next-floor.png")
+	main.modal.close()
+
+	# End screens. Both are terminal states a normal run reaches rarely, so they
+	# are driven directly rather than played out.
+	main.game.phase = Rules.PHASE_GAME_OVER
+	main.show_game_over()
+	await _wait(0.3)
+	assert(main.modal.visible and main.modal.kind == "over", "game over screen must open")
+	await _shot("10-game-over.png")
+	main.modal.close()
+
+	main.game.phase = Rules.PHASE_VICTORY
+	main.show_victory()
+	await _wait(0.3)
+	assert(main.modal.visible and main.modal.kind == "win", "victory screen must open")
+	await _shot("11-victory.png")
+
+	# Back to the title: the run must be torn down, not left half-running.
+	main.show_title()
+	await _wait(0.5)
+	assert(main.modal.kind == "title", "title screen must come back")
+	assert(not main.busy, "abandoning a run must clear the busy flag")
+	await _shot("12-title-return.png")
 	print("screenshots done")
