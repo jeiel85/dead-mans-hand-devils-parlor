@@ -73,7 +73,7 @@
 | 사기 도구 4종 + 적발 판정, 유물 8종, 층 보상 | Twitch EventSub 시청자 투표·대리 격발 |
 | 딜러 AI(거짓 추정, 콜 점수, 블러핑 습관 학습) | 다인 테이블(3~4인) |
 | 시드 재현, KR/EN, 타이머·소리 옵션, 모션 축소, 색약 이중 표기, 모바일 반응형 | 런 이어하기, 런 간 메타 프로그레션 |
-| 절차 사운드(외부 에셋 0), 밸런스 시뮬레이터, CI | 아트·실녹음 사운드 |
+| 절차 사운드(외부 에셋 0), 밸런스 시뮬레이터, CI, 한국어 조사 자동 처리 | 아트·실녹음 사운드 |
 | **Godot 빌드 3종(웹·Windows·Linux)**, 크로스 엔진 트레이스 검증 33,255건 | 피지컬 프로토타입(격발 손맛·1인칭 연출) |
 
 ## 밸런스 (시뮬레이션 3,000런)
@@ -93,7 +93,7 @@
 | [`docs/GDD.md`](docs/GDD.md) | **설계서 v1.2.0** — 벤치마킹, +α, 코어 룰·엣지케이스, 사기 시스템, 7층·딜러·유물, AI, 밸런스, FSM, 고스트·스트리밍 스펙, UX·접근성, 아키텍처(§13.6 Godot 클라이언트), 로드맵, KPI, 리스크 |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | 각 버전이 **무엇을 정정·보강했는지** (원본 코드의 실린더 순환 버그, 저주탄 미정의, Godot 포팅에서 잡은 결함) |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | 되돌리기 어려운 결정 10건과 근거 (엔진 언어, 표현 계층, 배포 방식 포함) |
-| [`docs/BACKLOG.md`](docs/BACKLOG.md) | 미뤄둔 개선점 |
+| [`docs/BACKLOG.md`](docs/BACKLOG.md) | 미뤄둔 개선점 (하드닝 후보는 이슈 [#1](https://github.com/jeiel85/dead-mans-hand-devils-parlor/issues/1)·[#2](https://github.com/jeiel85/dead-mans-hand-devils-parlor/issues/2)) |
 | [`docs/archive/`](docs/archive/) | 2026-09-09 원본 설계서·패키지 README (내용 무수정 보관) |
 
 ## 로컬 실행 · 테스트
