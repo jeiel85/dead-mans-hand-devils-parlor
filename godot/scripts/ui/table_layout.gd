@@ -135,7 +135,3 @@ static func _compact(v: Vector2) -> Dictionary:
 		"dealer_name_font": 17,
 	}
 
-
-## Real size of a control given its design size, for tests and diagnostics.
-static func touch_size(design_size: Vector2, window_height: float) -> Vector2:
-	return design_size * scale_for(window_height)
