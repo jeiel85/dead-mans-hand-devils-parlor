@@ -1,14 +1,14 @@
 # [GDD] Dead Man's Hand: Devil's Parlor — 기획·설계서
 
-- **문서 버전**: v1.1.0 (2026-09-10) · 원본 v1.0.0(2026-09-09)은 [`docs/archive/`](archive/2026-09-09_GDD_v1.0.0_original.md)에 그대로 보관
+- **문서 버전**: v1.2.0 (2026-09-10) · 원본 v1.0.0(2026-09-09)은 [`docs/archive/`](archive/2026-09-09_GDD_v1.0.0_original.md)에 그대로 보관
 - **변경 요약**: [`docs/CHANGELOG.md`](CHANGELOG.md) · 되돌리기 어려운 결정: [`docs/DECISIONS.md`](DECISIONS.md) · 미뤄둔 개선점: [`docs/BACKLOG.md`](BACKLOG.md)
 - **프로젝트 코드명**: Project Dead Man's Hand (망자의 패: 악마의 살롱)
-- **라이브 데모(웹 프로토타입)**: <https://jeiel85.github.io/dead-mans-hand-devils-parlor/>
+- **라이브 데모**: 웹 프로토타입 <https://jeiel85.github.io/dead-mans-hand-devils-parlor/> · **Godot 클라이언트** <https://jeiel85.github.io/dead-mans-hand-devils-parlor/play/>
 - **문서 목적**: 바이럴 인디 게임(《Liar's Bar》, 《Buckshot Roulette》) 분석에서 출발한 +α 차별화 설계를, **수치·룰·엣지케이스·AI·밸런스·리스크까지 즉시 개발 착수 가능한 수준**으로 확정한다.
 
 > **상태 표기 규칙**
-> ✅ **검증됨** — 웹 프로토타입에 구현되어 플레이·시뮬레이션으로 확인한 항목
-> 🔧 **확정(미구현)** — 설계는 확정했고 본 개발(Godot/Unity)에서 구현할 항목
+> ✅ **검증됨** — 웹 프로토타입과 Godot 클라이언트 양쪽에 구현되어 플레이·시뮬레이션·교차 트레이스로 확인한 항목
+> 🔧 **확정(미구현)** — 설계는 확정했고 아직 어느 쪽에도 구현하지 않은 항목
 > 💭 **검토 중** — 대안이 남아 있어 플레이테스트 결과로 결정할 항목
 
 ---
@@ -408,8 +408,9 @@ stateDiagram-v2
 
 ## 13. 기술 아키텍처
 
-### 13.1 본 개발 엔진 선정 🔧 (원본 유지)
-- **Godot 4.3+(C#)** 권장, Unity 대안. 2.5D 하이브리드(로우폴리 환경 + 2D 캐릭터). 1인 개발 이터레이션 속도·빌드 경량화·웹/모바일 포팅 용이성이 근거. 상세 비교는 [`DECISIONS.md` D-001](DECISIONS.md).
+### 13.1 본 개발 엔진 선정 ✅ (v1.2.0에서 확정·착수)
+- **Godot 4.7 / GDScript**로 착수해 v1.0.0 클라이언트를 냈다. 엔진 선택은 원본(D-001) 유지, **언어는 C# → GDScript로 변경**([`DECISIONS.md` D-008](DECISIONS.md)): 1순위 배포 채널인 웹 익스포트를 확실히 확보하기 위해서다.
+- 표현 계층은 원본의 1인칭 2.5D 대신 **1280×720 고정 2D 테이블 뷰**로 시작한다([D-009](DECISIONS.md)). 2.5D는 아트 파이프라인 착수(로드맵 5~6주차) 시점에 새 표현 계층으로 얹는다.
 
 ### 13.2 웹 프로토타입 아키텍처 ✅
 
@@ -489,10 +490,38 @@ public sealed class RevolverCylinder {
 
 ---
 
+### 13.6 Godot 클라이언트 아키텍처 ✅ (v1.0.0)
+
+```
+godot/project.godot             1280x720 · canvas_items/keep · GL Compatibility · 오토로드 3종
+godot/scripts/core/rng.gd       시드 RNG (xmur3 → mulberry32, 32비트 마스킹으로 JS와 동일)
+godot/scripts/core/data.gd      수치 단일 원천 — src/data.js와 같은 값
+godot/scripts/core/rules.gd     순수 엔진: 상태 + 액션 + 이벤트 (노드·타이머 의존 없음)
+godot/scripts/core/ai.gd        딜러 판단
+godot/scripts/core/i18n.gd      KR/EN 문자열 (오토로드)
+godot/scripts/core/audio.gd     절차 합성 WAV 16종 (오토로드, 외부 사운드 에셋 0)
+godot/scripts/core/save.gd      user://settings.json — 언어·소리·타이머·최고 기록 (오토로드)
+godot/scripts/ui/ui_kit.gd      팔레트·폰트·버튼/패널/라인에디트 팩토리
+godot/scripts/ui/*_view.gd      카드·실린더·초상 절차 렌더링(_draw)
+godot/scripts/ui/table_screen.gd  테이블 화면(표현 전용, 의도를 시그널로 발신)
+godot/scripts/ui/modal.gd       전체 화면 모달
+godot/scripts/ui/main.gd        컨트롤러: 입력·연출 큐·15초 타이머·세이브
+godot/test/test_runner.gd       헤드리스 테스트(룰·AI·퍼즈 300런·크로스 엔진 트레이스)
+godot/test/screenshot.gd        실제 입력(마우스·키보드)으로 8개 화면 캡처 + 단언
+```
+
+**웹 프로토타입과의 관계**: `src/rules.js`와 `rules.gd`는 같은 상태 기계이고, 같은 시드에서 **같은 순서의 같은 이벤트**를 낸다. 이를 회귀 테스트로 고정한다 — `tools/trace.js`가 5개 시드에서 1,121개 이벤트를 `godot/test/fixtures/traces.json`으로 뽑고, Godot 테스트 러너가 이를 재생해 필드 단위로 비교한다. 총 33,255건 검사, 실패 0.
+
+**표현 계층 원칙**: `table_screen.gd`는 `Rules` 상태를 그리기만 하고 판단하지 않는다. 플레이어 의도는 시그널로 `main.gd`에 올라가고, 엔진 호출 결과는 이벤트 배열로 내려와 연출 큐(`process_events`)가 순서대로 소비한다. 화면 전환 중 발생한 콜백은 `run_token`으로 무효화한다.
+
+---
+
 ## 14. 개발 로드맵
 
 ### 14.1 현재까지 (2026-09-10)
 - ✅ 웹 프로토타입: 코어 루프·7층·7딜러·도구 4·유물 8·시드·KR/EN·접근성 옵션·테스트 21건·시뮬레이터. GitHub Pages 라이브.
+- ✅ **Godot 클라이언트 v1.0.0**: 같은 룰·수치·AI를 GDScript로 포팅해 웹·Windows·Linux 빌드. 크로스 엔진 트레이스 33,255건 일치. 로드맵 3~4주차의 "포팅 + 동일 시드 교차 검증" 게이트를 통과한 상태다.
+- ⏳ 아직 없는 것: 1~2주차의 피지컬 프로토타입(격발 손맛·1인칭 연출)과 외부 플레이테스트. 아트·사운드는 여전히 절차 생성이다.
 
 ### 14.2 본 개발 8주(원본 유지, 게이트 추가)
 
@@ -563,3 +592,4 @@ public sealed class RevolverCylinder {
 | :-- | :-- | :-- |
 | v1.0.0 | 2026-09-09 | 최초 작성(벤치마킹·+α·코어 루프·FSM·데이터 모델·8주 로드맵) |
 | v1.1.0 | 2026-09-10 | 룰 정밀화·엣지케이스, 저주탄/계약서 정의, 7층·7딜러·유물·보상 확정, AI 모델, 밸런스 시뮬레이션, 고스트/스트리밍 스펙, UX/접근성, 아키텍처·스키마 정정, KPI·리스크 추가. 웹 프로토타입으로 ✅ 항목 검증 |
+| v1.2.0 | 2026-09-10 | Godot 4.7 클라이언트 v1.0.0 반영 — §13.1 엔진·언어 확정(GDScript), §13.6 클라이언트 아키텍처·크로스 엔진 트레이스 검증 추가, §14.1 진행 상황 갱신. 룰·수치는 변경 없음 |

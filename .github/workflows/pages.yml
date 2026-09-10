@@ -1,0 +1,92 @@
+name: Deploy Pages
+
+# Publishes two things from one artifact:
+#   /       — the vanilla-JS prototype (repo root, unchanged)
+#   /play/  — the Godot 4 web export, built here so no binaries live in git
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot editor and export templates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot ${{ env.GODOT_VERSION }} and export templates
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          if [ ! -x "$HOME/godot/godot" ]; then
+            mkdir -p "$HOME/godot"
+            curl -fsSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+            unzip -q /tmp/godot.zip -d /tmp/godot
+            mv "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$HOME/godot/godot"
+            chmod +x "$HOME/godot/godot"
+          fi
+          TPL="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          if [ ! -f "$TPL/web_nothreads_release.zip" ]; then
+            curl -fsSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+            unzip -q /tmp/templates.tpz -d /tmp/templates
+            mkdir -p "$TPL"
+            mv /tmp/templates/templates/* "$TPL/"
+          fi
+
+      - name: Export web build
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          # Godot's headless editor can hang on shutdown after finishing its work,
+          # so cap each run and judge success by the produced files instead.
+          timeout 600 "$HOME/godot/godot" --headless --path godot --import || true
+          timeout 900 "$HOME/godot/godot" --headless --path godot \
+            --export-release "Web" ../build/web/index.html || true
+          test -s build/web/index.wasm
+          test -s build/web/index.pck
+          test -s build/web/index.js
+
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          rsync -a \
+            --exclude '.git' --exclude '.github' --exclude '_site' \
+            --exclude 'build' --exclude 'godot' --exclude 'node_modules' \
+            ./ _site/
+          mkdir -p _site/play
+          cp build/web/* _site/play/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
