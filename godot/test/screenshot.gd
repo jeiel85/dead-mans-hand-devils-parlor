@@ -94,7 +94,26 @@ func _check_resize_round_trip(main: Control) -> void:
 		await _wait(0.6)
 		print("resize -> %dx%d" % [target.x, target.y])
 		_report_panel_fit(main)
+		_check_cards_match_layout(main)
 	await _wait(0.3)
+
+
+## CardView takes its size at construction, so a layout change has to redraw the
+## cards. Without that, resizing mid-round left wide-layout cards spilling out
+## of the compact player zone until the next round.
+func _check_cards_match_layout(main: Control) -> void:
+	var t = main.table
+	var want_card: Vector2 = t._layout["card"]
+	var want_small: Vector2 = t._layout["small_card"]
+	for cv in t._hand_cards:
+		assert(cv.size == want_card,
+			"hand card is %s but the layout wants %s" % [cv.size, want_card])
+	for cv in t._dealer_hand.get_children():
+		assert(cv.size == want_small,
+			"dealer card is %s but the layout wants %s" % [cv.size, want_small])
+	var hand_width: float = want_card.x * t._hand_cards.size() + t._layout["hand_gap"] * maxf(0.0, t._hand_cards.size() - 1)
+	assert(hand_width <= t._hand.size.x + 1.0,
+		"the hand needs %.0f px but has %.0f" % [hand_width, t._hand.size.x])
 
 
 func _center(c: Control) -> Vector2:

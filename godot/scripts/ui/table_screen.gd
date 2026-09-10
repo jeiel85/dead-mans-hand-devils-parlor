@@ -82,6 +82,12 @@ var _compact_row: HBoxContainer
 var _actions_box: BoxContainer
 var _mode_compact := false
 var _timer_layer: Control
+## The state the cards on screen were drawn from, and the card size they were
+## drawn at. A layout change has to redraw them: CardView takes its size at
+## construction, so resizing mid-round would otherwise leave wide-layout cards
+## spilling out of the compact player zone until the next round.
+var _rendered_game: Rules
+var _rendered_card_size := Vector2.ZERO
 var _player_col: VBoxContainer
 
 
@@ -411,6 +417,10 @@ func _apply_layout() -> void:
 		L["card"].x * 5.0 + L["hand_gap"] * 4.0,
 		L["card"].y + L["hand_top"] + 2.0)
 	_position_timer()
+	# Only while on screen: a resize on the title screen would otherwise redraw
+	# the finished run sitting behind the modal.
+	if visible and _rendered_game != null and _rendered_card_size != L["card"]:
+		render(_rendered_game)
 
 
 ## Wide places the five panels by hand at the numbers the table was drawn with.
@@ -592,6 +602,8 @@ func render_static() -> void:
 func render(game: Rules) -> void:
 	if game == null or game.dealer.is_empty():
 		return
+	_rendered_game = game
+	_rendered_card_size = _layout["card"]
 	var f := game.current_floor()
 	_hud_floor.text = I18n.t("hud.floor", {"level": f["level"], "name": I18n.t("floor." + f["id"])})
 	_hud_round.text = I18n.t("hud.round", {"n": game.round["number"]}) if not game.round.is_empty() else ""
