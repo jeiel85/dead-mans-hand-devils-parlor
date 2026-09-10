@@ -56,7 +56,7 @@ var _lbl_relics: Label
 # player zone
 var _player_hearts_box: HBoxContainer
 var _relics: HBoxContainer
-var _items: HBoxContainer
+var _items: Container
 var _hand: Control
 var _hand_cards: Array = []
 var _player_notes: Label
@@ -67,11 +67,30 @@ var _hint: Label
 var _selected_label: Label
 var _item_buttons: Dictionary = {}
 var _log_lines: Array = []
+# panels whose rects come from TableLayout
+var _top_bar: HBoxContainer
+var _dealer_panel: PanelContainer
+var _felt: PanelContainer
+var _side: PanelContainer
+var _player_panel: PanelContainer
+var _side_body: VBoxContainer
+var _log_box: Control
+var _small_buttons: Array = []
+var _layout: Dictionary = TableLayout.compute(Vector2(1280, 720))
+var _compact_root: VBoxContainer
+var _compact_col: VBoxContainer
+var _compact_row: HBoxContainer
+var _actions_box: BoxContainer
+var _hand_row: HBoxContainer
+var _mode_compact := false
+var _player_col: VBoxContainer
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build()
+	resized.connect(_apply_layout)
+	_apply_layout()
 
 
 # ---------------------------------------------------------------------------
@@ -88,12 +107,24 @@ func _build() -> void:
 	add_child(glow)
 	glow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
+	# Compact mode moves the panels into these; see _set_mode.
+	_compact_root = VBoxContainer.new()
+	_compact_root.add_theme_constant_override("separation", 4)
+	_compact_root.visible = false
+	add_child(_compact_root)
+	_compact_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_compact_row = HBoxContainer.new()
+	_compact_row.add_theme_constant_override("separation", 8)
+	_compact_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_compact_col = VBoxContainer.new()
+	_compact_col.add_theme_constant_override("separation", 4)
+	_compact_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
 	# --- top bar
 	var top := HBoxContainer.new()
-	top.position = Vector2(16, 8)
-	top.size = Vector2(1248, 40)
 	top.add_theme_constant_override("separation", 12)
 	add_child(top)
+	_top_bar = top
 	var brand := VBoxContainer.new()
 	brand.add_theme_constant_override("separation", 0)
 	var brand_main := UIKit.label("DEAD MAN'S HAND", 18, UIKit.C_BRASS, UIKit.serif())
@@ -118,9 +149,9 @@ func _build() -> void:
 	ctl.add_theme_constant_override("separation", 6)
 	_btn_lang = UIKit.button("EN", "small", 12)
 	_btn_sound = UIKit.button("♪", "small", 12)
-	_btn_timer = UIKit.button("⏱", "small", 12)
+	_btn_timer = UIKit.button("◐", "small", 12)
 	_btn_help = UIKit.button("?", "small", 12)
-	_btn_menu = UIKit.button("≡", "small", 12)
+	_btn_menu = UIKit.button("▤", "small", 12)
 	_btn_lang.pressed.connect(func(): lang_pressed.emit())
 	_btn_sound.pressed.connect(func(): sound_pressed.emit())
 	_btn_timer.pressed.connect(func(): timer_pressed.emit())
@@ -128,18 +159,17 @@ func _build() -> void:
 	_btn_menu.pressed.connect(func(): menu_pressed.emit())
 	for b in [_btn_lang, _btn_sound, _btn_timer, _btn_help, _btn_menu]:
 		ctl.add_child(b)
+		_small_buttons.append(b)
 	top.add_child(ctl)
 
 	# --- dealer zone
 	var dealer_panel := UIKit.panel()
-	dealer_panel.position = Vector2(16, 56)
-	dealer_panel.size = Vector2(920, 132)
 	add_child(dealer_panel)
+	_dealer_panel = dealer_panel
 	var drow := HBoxContainer.new()
 	drow.add_theme_constant_override("separation", 14)
 	dealer_panel.add_child(drow)
 	_portrait = PortraitView.new()
-	_portrait.custom_minimum_size = Vector2(96, 106)
 	drow.add_child(_portrait)
 	var dinfo := VBoxContainer.new()
 	dinfo.add_theme_constant_override("separation", 2)
@@ -190,9 +220,8 @@ func _build() -> void:
 	felt_style.shadow_color = Color(0, 0, 0, 0.5)
 	felt_style.shadow_size = 12
 	felt.add_theme_stylebox_override("panel", felt_style)
-	felt.position = Vector2(16, 196)
-	felt.size = Vector2(920, 250)
 	add_child(felt)
+	_felt = felt
 	var frow := HBoxContainer.new()
 	frow.add_theme_constant_override("separation", 22)
 	felt.add_child(frow)
@@ -202,7 +231,6 @@ func _build() -> void:
 	_lbl_rank = UIKit.caption("")
 	_lbl_rank.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_rank_card_holder = Control.new()
-	_rank_card_holder.custom_minimum_size = Vector2(90, 128)
 	_rank_name = UIKit.label("", 14, UIKit.C_BRASS, UIKit.serif())
 	_rank_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rank_box.add_child(_lbl_rank)
@@ -222,19 +250,17 @@ func _build() -> void:
 	pile_box.add_child(_pile_empty)
 	frow.add_child(pile_box)
 	_timer = TimerArc.new()
-	_timer.position = Vector2(16 + 920 - 14 - 60, 196 + 14)
-	_timer.size = Vector2(56, 56)
 	_timer.visible = false
 	add_child(_timer)
 
 	# --- side panel
 	var side := UIKit.panel()
-	side.position = Vector2(948, 56)
-	side.size = Vector2(316, 654)
 	add_child(side)
+	_side = side
 	var svbox := VBoxContainer.new()
 	svbox.add_theme_constant_override("separation", 6)
 	side.add_child(svbox)
+	_side_body = svbox
 	_lbl_cyl = UIKit.caption("")
 	svbox.add_child(_lbl_cyl)
 	var cyl_center := CenterContainer.new()
@@ -264,10 +290,10 @@ func _build() -> void:
 
 	# --- player zone
 	var pz := UIKit.panel()
-	pz.position = Vector2(16, 454)
-	pz.size = Vector2(920, 256)
 	add_child(pz)
+	_player_panel = pz
 	var pv := VBoxContainer.new()
+	_player_col = pv
 	pv.add_theme_constant_override("separation", 6)
 	pz.add_child(pv)
 	var status := HBoxContainer.new()
@@ -290,12 +316,14 @@ func _build() -> void:
 		_item_buttons[id] = b
 		_items.add_child(b)
 	var hand_row := HBoxContainer.new()
+	_hand_row = hand_row
 	hand_row.add_theme_constant_override("separation", 12)
 	_hand = Control.new()
 	_hand.custom_minimum_size = Vector2(500, 128)
 	_hand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hand_row.add_child(_hand)
 	var actions := VBoxContainer.new()
+	_actions_box = actions
 	actions.alignment = BoxContainer.ALIGNMENT_END
 	actions.add_theme_constant_override("separation", 8)
 	actions.custom_minimum_size = Vector2(200, 0)
@@ -323,14 +351,216 @@ func _build() -> void:
 
 
 # ---------------------------------------------------------------------------
+# Layout application
+# ---------------------------------------------------------------------------
+
+## Place the panels and resize the controls for the current viewport. Called on
+## every resize; TableLayout decides the numbers, this only applies them.
+func _apply_layout() -> void:
+	if _top_bar == null:
+		return
+	var L := TableLayout.compute(size)
+	_layout = L
+	if OS.is_stdout_verbose():
+		print("[layout] size=%s compact=%s" % [size, L["compact"]])
+	_set_mode(L["compact"], L)
+
+	_portrait.custom_minimum_size = L["portrait"]
+	_rank_card_holder.custom_minimum_size = L["rank_card"]
+	_dealer_name.add_theme_font_size_override("font_size", L["dealer_name_font"])
+
+	# The log is the first thing to go when the side panel gets narrow.
+	_lbl_log.visible = L["log_visible"]
+	_log.visible = L["log_visible"]
+	# Compact has 420 design px to spend and the table needs about 390 of them,
+	# so the captions and flavour lines fold away. Everything hidden here is
+	# either decoration or repeated elsewhere on screen.
+	var full: bool = not L["compact"]
+	for c in [_dealer_title, _dealer_focus, _dealer_hand_label, _lbl_rank, _lbl_pile,
+			_lbl_cyl, _lbl_relics, _selected_label, _player_notes, _dealer_notes]:
+		c.visible = full
+	if not full:
+		_speech.visible = false
+
+	for panel in [_dealer_panel, _side, _player_panel]:
+		var sb: StyleBox = panel.get_theme_stylebox("panel")
+		if sb is StyleBoxFlat:
+			(sb as StyleBoxFlat).set_content_margin_all(L["panel_margin"])
+
+	for b in _small_buttons:
+		# Icon buttons are the smallest thing on screen; give them a real
+		# minimum so a finger can hit them on a phone.
+		var side_px: float = float(L["small_pad"]) * 2.0 + 20.0
+		b.custom_minimum_size = Vector2(side_px, side_px)
+		b.add_theme_font_size_override("font_size", L["small_font"])
+
+	for b in [_btn_play, _btn_call, _btn_pass]:
+		b.custom_minimum_size = Vector2(0, float(L["action_pad"]) * 2.0 + 22.0)
+		b.add_theme_font_size_override("font_size", L["action_font"])
+
+	for id in _item_buttons:
+		var ib: ItemButton = _item_buttons[id]
+		ib.apply_size(L["item_min"], L["item_fixed_width"])
+
+	_hand.custom_minimum_size = Vector2(
+		L["card"].x * 5.0 + L["hand_gap"] * 4.0,
+		L["card"].y + L["hand_top"] + 2.0)
+	_position_timer()
+
+
+## Wide places the five panels by hand at the numbers the table was drawn with.
+## Compact hands them to containers instead: the content only just fits at that
+## design height, and a container cannot overlap what it cannot fit.
+func _set_mode(compact: bool, L: Dictionary) -> void:
+	if OS.is_stdout_verbose():
+		print("[mode] compact=%s was=%s rootkids=%d" % [compact, _mode_compact, _compact_root.get_child_count()])
+	if compact != _mode_compact or _compact_root.get_child_count() == 0:
+		_mode_compact = compact
+		if compact:
+			_reparent(_top_bar, _compact_root)
+			if _compact_row.get_parent() == null:
+				_compact_root.add_child(_compact_row)
+			if _compact_col.get_parent() == null:
+				_compact_row.add_child(_compact_col)
+			_reparent(_dealer_panel, _compact_col)
+			_reparent(_felt, _compact_col)
+			_reparent(_player_panel, _compact_col)
+			_reparent(_side, _compact_row)
+			_felt.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			_dealer_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_player_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_felt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_compact_root.visible = true
+		else:
+			for c in [_top_bar, _dealer_panel, _felt, _player_panel, _side]:
+				_reparent(c, self)
+			_felt.size_flags_vertical = Control.SIZE_FILL
+			_compact_root.visible = false
+		_restack_actions(L)
+	if compact:
+		var m: float = L["margin"]
+		_compact_root.offset_left = m
+		_compact_root.offset_top = m * 0.5
+		_compact_root.offset_right = -m
+		_compact_root.offset_bottom = -m
+		_side.custom_minimum_size = Vector2(L["side_width"], 0)
+	else:
+		_side.custom_minimum_size = Vector2.ZERO
+		_place(_top_bar, L["top"])
+		_place(_dealer_panel, L["dealer"])
+		_place(_felt, L["felt"])
+		_place(_side, L["side"])
+		_place(_player_panel, L["player"])
+
+
+## Compact stands the two response buttons side by side. Stacked they cost
+## 104 design px of a 420 px screen, which the vertical budget cannot spare.
+## The cheat items move the other way, into the side panel as a column, which
+## buys back the 52 px their row cost in the player zone.
+func _restack_actions(L: Dictionary) -> void:
+	var horizontal: bool = L["actions_horizontal"]
+	_actions_box = _restack(_actions_box, horizontal, Vector2(200, 0) if not horizontal else Vector2.ZERO)
+	_restack_items(L["compact"])
+
+
+## Wide keeps the four cheat items in a row under the hand. Compact moves them
+## into the side panel as a 2x2 grid: a column of four would need 216 design px
+## of side panel, twice what is there once the revolver has its share.
+func _restack_items(compact: bool) -> void:
+	var want_grid := compact
+	if (_items is GridContainer) == want_grid:
+		_place_items(compact)
+		return
+	var children := _items.get_children()
+	for c in children:
+		_items.remove_child(c)
+	if _items.get_parent() != null:
+		_items.get_parent().remove_child(_items)
+	_items.queue_free()
+	if want_grid:
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.add_theme_constant_override("h_separation", 6)
+		grid.add_theme_constant_override("v_separation", 6)
+		_items = grid
+	else:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_items = row
+	for c in children:
+		_items.add_child(c)
+	_place_items(compact)
+
+
+func _place_items(compact: bool) -> void:
+	if compact:
+		_reparent(_items, _side_body)
+	else:
+		_reparent(_items, _player_col)
+		_player_col.move_child(_items, 1)
+
+
+## Swap a BoxContainer for the other orientation, keeping its children and place.
+func _restack(box: BoxContainer, horizontal: bool, min_size: Vector2) -> BoxContainer:
+	if (box is HBoxContainer) == horizontal:
+		box.custom_minimum_size = min_size
+		return box
+	var parent := box.get_parent()
+	var idx := box.get_index()
+	var children := box.get_children()
+	for c in children:
+		box.remove_child(c)
+	if parent != null:
+		parent.remove_child(box)
+	box.queue_free()
+	var fresh: BoxContainer = HBoxContainer.new() if horizontal else VBoxContainer.new()
+	fresh.alignment = box.alignment
+	fresh.add_theme_constant_override("separation", 8)
+	fresh.custom_minimum_size = min_size
+	for c in children:
+		fresh.add_child(c)
+	if parent != null:
+		parent.add_child(fresh)
+		parent.move_child(fresh, idx)
+	return fresh
+
+
+func _reparent(c: Control, target: Node) -> void:
+	if c.get_parent() == target:
+		return
+	if c.get_parent() != null:
+		c.get_parent().remove_child(c)
+	target.add_child(c)
+
+
+func _position_timer() -> void:
+	var L := _layout
+	var s: float = L["timer_size"]
+	_timer.size = Vector2(s, s)
+	if L["compact"]:
+		# The felt sits inside a container now, so anchor off its actual rect.
+		var origin := _felt.global_position - global_position
+		_timer.position = origin + Vector2(_felt.size.x - s - 8.0, 8.0)
+	else:
+		_timer.position = L["timer"]
+
+
+func _place(c: Control, r: Rect2) -> void:
+	c.position = r.position
+	c.size = r.size
+
+
+# ---------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------
 
 func render_static() -> void:
 	_btn_lang.text = "EN" if I18n.lang() == "ko" else "한국어"
-	_btn_sound.text = "♪" if Save.sound else "♪̸"
+	# Neither bundled font has the combining slash the "off" glyph used, so the
+	# state reads from the dimming below instead of a struck-through note.
+	_btn_sound.text = "♪"
 	_btn_sound.modulate = Color.WHITE if Save.sound else Color(1, 1, 1, 0.5)
-	_btn_timer.text = "⏱"
+	_btn_timer.text = "◐"
 	_btn_timer.modulate = Color.WHITE if Save.timer_enabled else Color(1, 1, 1, 0.5)
 	_btn_play.text = I18n.t("btn.play")
 	_btn_call.text = I18n.t("btn.call")
@@ -377,7 +607,7 @@ func _render_dealer(game: Rules) -> void:
 	_dealer_hand_label.text = I18n.t("hud.dealerHand", {"n": hand.size()}).to_upper()
 	_clear(_dealer_hand)
 	for c in hand:
-		var cv := CardView.new(c["rank"], -1, true, not revealed)
+		var cv := CardView.new(c["rank"], -1, true, not revealed, _layout["small_card"])
 		_dealer_hand.add_child(cv)
 	var notes: Array = []
 	if revealed:
@@ -396,9 +626,8 @@ func _render_center(game: Rules) -> void:
 	var r := game.round
 	_clear(_rank_card_holder)
 	if not r.is_empty():
-		var cv := CardView.new(r["tableRank"], -1, false, false)
-		cv.custom_minimum_size = Vector2(90, 128)
-		cv.size = Vector2(90, 128)
+		var cv := CardView.new(r["tableRank"], -1, false, false, _layout["rank_card"])
+		cv.size = _layout["rank_card"]
 		_rank_card_holder.add_child(cv)
 		_rank_name.text = I18n.rank(r["tableRank"])
 	_clear(_pile)
@@ -411,9 +640,10 @@ func _render_center(game: Rules) -> void:
 		entry.add_theme_constant_override("separation", 4)
 		entry.alignment = BoxContainer.ALIGNMENT_END
 		var stack := Control.new()
-		stack.custom_minimum_size = Vector2(50 + 6 * (p["cards"].size() - 1) + 6, 78)
+		var sc: Vector2 = _layout["small_card"]
+		stack.custom_minimum_size = Vector2(sc.x + 6 * (p["cards"].size() - 1) + 6, sc.y + 8)
 		for k in range(p["cards"].size()):
-			var cv := CardView.new("A", -1, true, true)
+			var cv := CardView.new("A", -1, true, true, sc)
 			cv.position = Vector2(k * 6, 6 - k * 3)
 			cv.rotation = deg_to_rad(k * 4 - 4)
 			stack.add_child(cv)
@@ -478,10 +708,11 @@ func render_hand(game: Rules) -> void:
 	var la := game.legal_actions()
 	var can_select: bool = la["play"] or la["cheats"].has("bottomDeal")
 	var x := 0.0
+	var card_size: Vector2 = _layout["card"]
 	for c in hand:
-		var cv := CardView.new(c["rank"], c["id"], false, false)
+		var cv := CardView.new(c["rank"], c["id"], false, false, card_size)
 		cv.selectable = can_select
-		cv.position = Vector2(x, 16)
+		cv.position = Vector2(x, _layout["hand_top"])
 		cv.remember_base()
 		cv.selected = selected.has(c["id"])
 		if cv.selected:
@@ -489,7 +720,7 @@ func render_hand(game: Rules) -> void:
 		cv.toggled.connect(func(id): card_toggled.emit(id))
 		_hand.add_child(cv)
 		_hand_cards.append(cv)
-		x += CardView.W + 10
+		x += card_size.x + float(_layout["hand_gap"])
 	_selected_label.text = I18n.t("hud.selected", {"n": selected.size()}) if hand.size() > 0 else ""
 
 
@@ -534,7 +765,7 @@ func set_hint(text: String, transient := false) -> void:
 
 
 func set_speech(text: String, thinking := false) -> void:
-	_speech.visible = text != ""
+	_speech.visible = text != "" and not bool(_layout["compact"])
 	_speech_label.text = text
 	_speech.modulate = Color(1, 1, 1, 0.75 if thinking else 1.0)
 
@@ -616,6 +847,18 @@ class ItemButton extends Button:
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		icon.color = {"mirror": Color("8fa8b3"), "bottomDeal": Color("b0413e"), "leadWeight": Color("6e6e6e"), "pact": Color("7a1f1f")}[id]
 		add_child(icon)
+
+	## Compact mode drops the fixed width so four buttons share a narrow row,
+	## and raises the height so the button stays touchable.
+	func apply_size(min_size: Vector2, fixed_width: bool) -> void:
+		custom_minimum_size = min_size if fixed_width else Vector2(min_size.x, min_size.y)
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var roomy := min_size.x >= 140.0
+		_meta_label.visible = roomy
+		# Narrow buttons would otherwise let the item name draw past their edge.
+		_name_label.clip_text = not roomy
+		_name_label.add_theme_font_size_override("font_size", 13 if roomy else 12)
+
 
 	func update_view(name_text: String, charges: int, detect_pct: int, usable: bool, desc: String) -> void:
 		_name_label.text = name_text

@@ -69,6 +69,7 @@ func _run_all() -> void:
 	_test_challenge_timer()
 	_test_orientation()
 	_test_font_coverage()
+	_test_table_layout()
 
 
 # xmur3+mulberry32 reference values produced by node: createRng('TEST01').next() x3
@@ -604,8 +605,9 @@ func _test_orientation() -> void:
 
 
 func _collect_chars() -> Dictionary:
-	## Every character the UI can put on screen from its own strings, plus the
-	## digits and symbols the code formats numbers with.
+	## Every character the UI can put on screen: the string tables plus the
+	## glyphs that only appear as literals in code (see extra-glyphs.txt, which
+	## tools/subset-fonts.py reads too so the two cannot drift).
 	var seen := {}
 	for dict in [I18n.KO, I18n.EN]:
 		for key in dict.keys():
@@ -615,11 +617,16 @@ func _collect_chars() -> Dictionary:
 				var text := str(tv)
 				for i in range(text.length()):
 					seen[text.unicode_at(i)] = true
-	# Card pips (crowns, star) are drawn as shapes by CardView, not as glyphs, so
-	# only characters that really go through draw_string belong here.
-	for extra in ["0123456789/×·%-+.,:()'\"?!→ ", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"]:
-		for i in range(extra.length()):
-			seen[extra.unicode_at(i)] = true
+	var extra := FileAccess.get_file_as_string("res://assets/fonts/extra-glyphs.txt")
+	_check(extra != "", "extra-glyphs.txt 를 읽을 수 있어야 한다")
+	for line in extra.split("
+"):
+		if line.begins_with("#"):
+			continue
+		for i in range(line.length()):
+			var c := line.unicode_at(i)
+			if c > 32:
+				seen[c] = true
 	return seen
 
 
@@ -630,10 +637,66 @@ func _test_font_coverage() -> void:
 	for pair in [["serif", UIKit.serif()], ["sans", UIKit.sans()]]:
 		var label: String = pair[0]
 		var font: Font = pair[1]
-		var missing := ""
+		var missing: Array = []
 		for c in chars.keys():
 			if c < 32:
 				continue
 			if not font.has_char(c):
-				missing += char(c)
-		_check(missing.is_empty(), "font %s: 빠진 글자 [%s]" % [label, missing])
+				missing.append("%s(U+%04X)" % [char(c), c])
+		_check(missing.is_empty(), "font %s: 빠진 글자 %s" % [label, ", ".join(missing)])
+
+
+func _test_table_layout() -> void:
+	# The wide layout must keep the exact rects the table was drawn with, or a
+	# desktop window silently shifts after this refactor.
+	var wide := TableLayout.compute(Vector2(1280, 720))
+	_eq(wide["compact"], false, "layout: 1280x720는 wide")
+	_eq(wide["top"], Rect2(16, 8, 1248, 40), "layout: 상단바 rect 유지")
+	_eq(wide["dealer"], Rect2(16, 56, 920, 132), "layout: 딜러존 rect 유지")
+	_eq(wide["felt"], Rect2(16, 196, 920, 250), "layout: 펠트 rect 유지")
+	_eq(wide["side"], Rect2(948, 56, 316, 654), "layout: 사이드 rect 유지")
+	_eq(wide["player"], Rect2(16, 454, 920, 256), "layout: 플레이어존 rect 유지")
+	_eq(wide["timer"], Vector2(862, 210), "layout: 타이머 위치 유지")
+	_eq(wide["card"], Vector2(78, 110), "layout: 카드 크기 유지")
+
+	# Extra width goes to the table, not to a gap on the right.
+	var ultra := TableLayout.compute(Vector2(1707, 720))
+	_eq(ultra["compact"], false, "layout: 울트라와이드도 wide")
+	_eq(ultra["side"].end.x, 1707.0 - 16.0, "layout: 사이드가 오른쪽 여백에 붙는다")
+	_check(ultra["dealer"].size.x > wide["dealer"].size.x, "layout: 남는 폭은 테이블이 가져간다")
+
+	# Wide places panels by hand, so nothing may overlap or run off the screen.
+	for v in [Vector2(1280, 720), Vector2(1707, 720), Vector2(1600, 900)]:
+		var L := TableLayout.compute(v)
+		var name := "%dx%d" % [int(v.x), int(v.y)]
+		_eq(L["compact"], false, "layout %s: wide 여야 한다" % name)
+		_check(L["dealer"].end.y <= L["felt"].position.y, "layout %s: 딜러존이 펠트를 침범하지 않는다" % name)
+		_check(L["felt"].end.y <= L["player"].position.y, "layout %s: 펠트가 플레이어존을 침범하지 않는다" % name)
+		_check(L["player"].end.y <= v.y, "layout %s: 플레이어존이 화면을 넘지 않는다" % name)
+		_check(L["dealer"].end.x <= L["side"].position.x, "layout %s: 테이블과 사이드가 겹치지 않는다" % name)
+		_check(L["side"].end.x <= v.x, "layout %s: 사이드가 화면을 넘지 않는다" % name)
+		_check(L["side"].end.y <= v.y, "layout %s: 사이드가 세로로 넘지 않는다" % name)
+
+	# Compact hands placement to containers, so it only promises sizes.
+	for v in [Vector2(909, 420), Vector2(926, 720), Vector2(750, 420)]:
+		var L := TableLayout.compute(v)
+		var name := "%dx%d" % [int(v.x), int(v.y)]
+		_eq(L["compact"], true, "layout %s: compact 여야 한다" % name)
+		_check(not L.has("dealer"), "layout %s: compact는 패널 rect를 내지 않는다" % name)
+		_check(L["side_width"] < v.x * 0.5, "layout %s: 사이드가 화면 절반을 넘지 않는다" % name)
+		_check(L["actions_horizontal"], "layout %s: compact는 응답 버튼을 가로로 놓는다" % name)
+
+	# A short window drops to the compact design height, which is the whole point:
+	# it buys real pixels for the controls.
+	_eq(TableLayout.design_height(720.0), TableLayout.WIDE_HEIGHT, "layout: 데스크톱은 720 설계")
+	_eq(TableLayout.design_height(390.0), TableLayout.COMPACT_HEIGHT, "layout: 폰은 420 설계")
+	var phone := TableLayout.compute(Vector2(909, 420))
+	_eq(phone["compact"], true, "layout: 폰 뷰포트는 compact")
+	# Buttons and cards must clear the 44 px touch target on a phone in landscape.
+	var action_h: float = float(phone["action_pad"]) * 2.0 + 22.0
+	var item_h: float = phone["item_min"].y
+	var small_side: float = float(phone["small_pad"]) * 2.0 + 20.0
+	for probe in [["액션 버튼", action_h], ["사기 도구", item_h], ["아이콘 버튼", small_side], ["카드 폭", phone["card"].x]]:
+		var px: float = float(probe[1]) * TableLayout.scale_for(390.0)
+		_check(px >= TableLayout.MIN_TOUCH_PX,
+			"touch %s: 폰 가로에서 %.0fpx (>= %.0f 필요)" % [probe[0], px, TableLayout.MIN_TOUCH_PX])

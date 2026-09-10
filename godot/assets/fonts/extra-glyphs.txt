@@ -1,0 +1,13 @@
+# Characters the UI draws that are not in i18n.gd's string tables: number
+# formats, rank letters, button icons, quotation marks, cylinder pips.
+# tools/subset-fonts.py keeps these in the fonts and _test_font_coverage() in
+# godot/test/test_runner.gd fails if the fonts lack any of them, which is how
+# the missing menu, timer and curse-bullet glyphs were found.
+# Lines starting with # are ignored; whitespace does not count.
+0123456789
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+abcdefghijklmnopqrstuvwxyz
+/*-+.,:;()[]{}<>!?%&#'"
+×·→…“”
+♪◐▤●○◆
+한국어

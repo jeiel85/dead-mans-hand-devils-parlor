@@ -19,12 +19,17 @@ const SW := 50.0
 const SH := 70.0
 
 
-func _init(p_rank: String = "A", p_id: int = -1, p_small := false, p_face_down := false) -> void:
+func _init(p_rank: String = "A", p_id: int = -1, p_small := false, p_face_down := false,
+		p_size: Vector2 = Vector2.ZERO) -> void:
 	rank = p_rank
 	card_id = p_id
 	small = p_small
 	face_down = p_face_down
-	custom_minimum_size = Vector2(SW, SH) if small else Vector2(W, H)
+	# The compact layout draws smaller cards; W/H stay the wide-layout defaults.
+	if p_size != Vector2.ZERO:
+		custom_minimum_size = p_size
+	else:
+		custom_minimum_size = Vector2(SW, SH) if small else Vector2(W, H)
 	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_entered.connect(func(): _hover = true; queue_redraw())

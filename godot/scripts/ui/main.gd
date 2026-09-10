@@ -548,6 +548,18 @@ static func wants_landscape(window_size: Vector2i) -> bool:
 	return window_size.y > window_size.x
 
 
+## Choose the design height for the current window. A short window (a phone in
+## landscape) renders a smaller design area, which makes every design pixel
+## worth more real pixels and lets the compact layout put a finger-sized button
+## on screen. Desktop windows keep the 720 px design the table was drawn at.
+func _apply_content_scale() -> void:
+	var win := get_window()
+	var h := TableLayout.design_height(float(win.size.y))
+	var target := Vector2i(int(h * 16.0 / 9.0), int(h))
+	if win.content_scale_size != target:
+		win.content_scale_size = target
+
+
 func _build_portrait_notice() -> void:
 	portrait_notice = Control.new()
 	portrait_notice.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -574,7 +586,12 @@ func _build_portrait_notice() -> void:
 	portrait_notice.visible = false
 	portrait_notice.set_meta("title", title)
 	portrait_notice.set_meta("body", body)
-	get_window().size_changed.connect(_update_orientation)
+	get_window().size_changed.connect(_on_window_resized)
+	_on_window_resized()
+
+
+func _on_window_resized() -> void:
+	_apply_content_scale()
 	_update_orientation()
 
 

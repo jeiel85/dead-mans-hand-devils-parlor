@@ -4,6 +4,14 @@ extends Node
 
 const OUT := "res://../build/shots"
 
+## Pass `-- --prefix=compact-` to capture a second set at another resolution
+## without overwriting the first.
+static func _prefix() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--prefix="):
+			return a.split("=", true, 1)[1]
+	return ""
+
 
 func _ready() -> void:
 	# The game ships with low-processor mode (redraw only on change); the runner
@@ -16,6 +24,52 @@ func _ready() -> void:
 
 func _wait(sec: float) -> void:
 	await get_tree().create_timer(sec).timeout
+
+
+## A panel can only shrink to its content's minimum size, so a band that is too
+## small silently overlaps the next one. Report every panel that does not fit.
+func _report_panel_fit(main: Control) -> void:
+	var t = main.table
+	var L: Dictionary = t._layout
+	print("layout: compact=%s viewport=%s" % [L["compact"], t.size])
+	if OS.is_stdout_verbose():
+		for pair in [["top", t._top_bar], ["dealer", t._dealer_panel], ["felt", t._felt],
+				["side", t._side], ["player", t._player_panel]]:
+			var c: Control = pair[1]
+			var need := c.get_combined_minimum_size()
+			print("  %-7s pos=%.0f,%.0f %.0fx%.0f  min=%.0fx%.0f" % [
+				pair[0], c.position.x, c.position.y, c.size.x, c.size.y, need.x, need.y])
+	# Panels must not overlap each other or leave the screen, whichever mode
+	# put them there.
+	var rects := {}
+	for pair in [["dealer", t._dealer_panel], ["felt", t._felt], ["side", t._side],
+			["player", t._player_panel]]:
+		rects[pair[0]] = Rect2(pair[1].global_position, pair[1].size)
+	var names: Array = rects.keys()
+	for i in range(names.size()):
+		for j in range(i + 1, names.size()):
+			var a: Rect2 = rects[names[i]]
+			var b: Rect2 = rects[names[j]]
+			var overlap := a.intersection(b)
+			assert(overlap.size.x < 1.0 or overlap.size.y < 1.0,
+				"%s and %s overlap by %.0fx%.0f" % [names[i], names[j], overlap.size.x, overlap.size.y])
+	var screen := Rect2(Vector2.ZERO, t.size)
+	for name in names:
+		var r: Rect2 = rects[name]
+		assert(screen.encloses(r.grow(-1.0)), "%s (%s) leaves the screen %s" % [name, r, t.size])
+
+
+## Switching layout mode mid-game must not leave panels overlapping. Resize to
+## the other mode and back, checking the panels each time.
+func _check_resize_round_trip(main: Control) -> void:
+	var original := DisplayServer.window_get_size()
+	var other := Vector2i(844, 390) if original.y >= 600 else Vector2i(1280, 720)
+	for target in [other, original]:
+		DisplayServer.window_set_size(target)
+		await _wait(0.6)
+		print("resize -> %dx%d" % [target.x, target.y])
+		_report_panel_fit(main)
+	await _wait(0.3)
 
 
 func _center(c: Control) -> Vector2:
@@ -54,8 +108,9 @@ func _shot(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
-	img.save_png(ProjectSettings.globalize_path(OUT + "/" + name))
-	print("shot: " + name)
+	var file := _prefix() + name
+	img.save_png(ProjectSettings.globalize_path(OUT + "/" + file))
+	print("shot: " + file)
 
 
 func _run() -> void:
@@ -70,7 +125,10 @@ func _run() -> void:
 	main.game.begin_round()
 	main.after_engine_step()
 	await _wait(0.8)
+	# Containers only sort while visible, so check the panels once the table is up.
+	_report_panel_fit(main)
 	await _shot("03-table.png")
+	await _check_resize_round_trip(main)
 	# select two cards and play them, then let the dealer respond
 	# Drive the real input path (mouse picking -> CardView._gui_input -> main.toggle_select)
 	await _click(_center(main.table._hand_cards[0]))

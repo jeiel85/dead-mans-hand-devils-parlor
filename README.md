@@ -52,7 +52,9 @@
 | :-- | :-- |
 | ![타이틀](docs/shots/01-title.png) | ![층 진입](docs/shots/02-floor-intro.png) |
 | ![테이블](docs/shots/03-table.png) | ![공개](docs/shots/06-reveal.png) |
-| ![승리](docs/shots/11-victory.png) | 화면은 `godot --path godot res://test/screenshot.tscn`으로 자동 캡처됩니다. |
+| ![승리](docs/shots/11-victory.png) | ![좁은 화면](docs/shots/compact-03-table.png) |
+
+왼쪽 위부터 타이틀, 층 진입, 테이블, 공개, 승리, 그리고 폰 가로 화면용 배치입니다. 모두 `godot --path godot res://test/screenshot.tscn`으로 자동 캡처됩니다.
 
 ## 30초 룰
 
@@ -73,7 +75,7 @@
 | 7층 · 딜러 7명(각각 다른 페르소나 파라미터와 기믹) | 비동기 고스트 대전(기록 포맷·재생·프라이버시 스펙) |
 | 사기 도구 4종 + 적발 판정, 유물 8종, 층 보상 | Twitch EventSub 시청자 투표·대리 격발 |
 | 딜러 AI(거짓 추정, 콜 점수, 블러핑 습관 학습) | 다인 테이블(3~4인) |
-| 시드 재현, KR/EN, 타이머·소리 옵션, 모션 축소, 색약 이중 표기, 모바일 반응형 | 런 이어하기, 런 간 메타 프로그레션 |
+| 시드 재현, KR/EN, 타이머·소리 옵션, 색약 이중 표기, 데스크톱·폰 두 가지 배치 | 런 이어하기, 런 간 메타 프로그레션 |
 | 절차 사운드(외부 에셋 0), 밸런스 시뮬레이터, CI, 한국어 조사 자동 처리 | 아트·실녹음 사운드 |
 | **Godot 빌드 3종(웹·Windows·Linux)**, 크로스 엔진 트레이스 검증 33,255건 | 피지컬 프로토타입(격발 손맛·1인칭 연출) |
 
@@ -122,6 +124,7 @@ godot --path godot                                   # 실행
 godot --headless --path godot --import               # class_name 캐시 생성 (최초 1회)
 godot --headless --path godot res://test/test_runner.tscn   # 33,255건 검사
 godot --path godot res://test/screenshot.tscn        # build/shots/에 12개 화면 캡처 + 단언
+godot --path godot --resolution 844x390 res://test/screenshot.tscn -- --prefix=compact-   # 좁은 배치
 python tools/subset-fonts.py                         # 문자열을 바꾼 뒤 폰트 서브셋 갱신
 ```
 
