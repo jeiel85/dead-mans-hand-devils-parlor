@@ -74,15 +74,14 @@ var _felt: PanelContainer
 var _side: PanelContainer
 var _player_panel: PanelContainer
 var _side_body: VBoxContainer
-var _log_box: Control
 var _small_buttons: Array = []
 var _layout: Dictionary = TableLayout.compute(Vector2(1280, 720))
 var _compact_root: VBoxContainer
 var _compact_col: VBoxContainer
 var _compact_row: HBoxContainer
 var _actions_box: BoxContainer
-var _hand_row: HBoxContainer
 var _mode_compact := false
+var _timer_layer: Control
 var _player_col: VBoxContainer
 
 
@@ -251,7 +250,14 @@ func _build() -> void:
 	frow.add_child(pile_box)
 	_timer = TimerArc.new()
 	_timer.visible = false
-	add_child(_timer)
+	# The arc lives inside the felt so it follows the panel in both layouts and
+	# can never end up behind it when the mode switches. PanelContainer fits
+	# every child to its content rect, so the arc goes in a transparent layer
+	# that takes that stretching and anchors the arc inside itself.
+	_timer_layer = Control.new()
+	_timer_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	felt.add_child(_timer_layer)
+	_timer_layer.add_child(_timer)
 
 	# --- side panel
 	var side := UIKit.panel()
@@ -316,7 +322,6 @@ func _build() -> void:
 		_item_buttons[id] = b
 		_items.add_child(b)
 	var hand_row := HBoxContainer.new()
-	_hand_row = hand_row
 	hand_row.add_theme_constant_override("separation", 12)
 	_hand = Control.new()
 	_hand.custom_minimum_size = Vector2(500, 128)
@@ -400,7 +405,7 @@ func _apply_layout() -> void:
 
 	for id in _item_buttons:
 		var ib: ItemButton = _item_buttons[id]
-		ib.apply_size(L["item_min"], L["item_fixed_width"])
+		ib.apply_size(L["item_min"])
 
 	_hand.custom_minimum_size = Vector2(
 		L["card"].x * 5.0 + L["hand_gap"] * 4.0,
@@ -426,6 +431,11 @@ func _set_mode(compact: bool, L: Dictionary) -> void:
 			_reparent(_felt, _compact_col)
 			_reparent(_player_panel, _compact_col)
 			_reparent(_side, _compact_row)
+			# add_child appends, so coming back to compact a second time would
+			# leave the top bar below the table. Pin the order explicitly.
+			_order(_compact_root, [_top_bar, _compact_row])
+			_order(_compact_col, [_dealer_panel, _felt, _player_panel])
+			_order(_compact_row, [_compact_col, _side])
 			_felt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			_dealer_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			_player_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -525,6 +535,12 @@ func _restack(box: BoxContainer, horizontal: bool, min_size: Vector2) -> BoxCont
 	return fresh
 
 
+## Put `children` in this order at the front of `parent`.
+func _order(parent: Node, children: Array) -> void:
+	for i in range(children.size()):
+		parent.move_child(children[i], i)
+
+
 func _reparent(c: Control, target: Node) -> void:
 	if c.get_parent() == target:
 		return
@@ -533,16 +549,17 @@ func _reparent(c: Control, target: Node) -> void:
 	target.add_child(c)
 
 
+## Pin the arc to the felt's top-right corner. Anchors rather than coordinates,
+## because in compact the felt is laid out by a container and its rect is not
+## known yet while this runs.
 func _position_timer() -> void:
-	var L := _layout
-	var s: float = L["timer_size"]
-	_timer.size = Vector2(s, s)
-	if L["compact"]:
-		# The felt sits inside a container now, so anchor off its actual rect.
-		var origin := _felt.global_position - global_position
-		_timer.position = origin + Vector2(_felt.size.x - s - 8.0, 8.0)
-	else:
-		_timer.position = L["timer"]
+	var s: float = _layout["timer_size"]
+	var inset: float = 14.0 if not _layout["compact"] else 8.0
+	_timer.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_timer.offset_right = -inset
+	_timer.offset_left = -inset - s
+	_timer.offset_top = inset
+	_timer.offset_bottom = inset + s
 
 
 func _place(c: Control, r: Rect2) -> void:
@@ -850,8 +867,8 @@ class ItemButton extends Button:
 
 	## Compact mode drops the fixed width so four buttons share a narrow row,
 	## and raises the height so the button stays touchable.
-	func apply_size(min_size: Vector2, fixed_width: bool) -> void:
-		custom_minimum_size = min_size if fixed_width else Vector2(min_size.x, min_size.y)
+	func apply_size(min_size: Vector2) -> void:
+		custom_minimum_size = min_size
 		size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var roomy := min_size.x >= 140.0
 		_meta_label.visible = roomy

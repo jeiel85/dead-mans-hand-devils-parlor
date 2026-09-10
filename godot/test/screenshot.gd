@@ -57,6 +57,31 @@ func _report_panel_fit(main: Control) -> void:
 	for name in names:
 		var r: Rect2 = rects[name]
 		assert(screen.encloses(r.grow(-1.0)), "%s (%s) leaves the screen %s" % [name, r, t.size])
+	# The countdown arc went missing twice during review: once placed outside the
+	# viewport in compact, once re-parented behind the opaque felt on a mode
+	# switch. Check it is on screen, over the felt, and drawn after it.
+	# Reading order must survive a mode switch: add_child appends, so coming back
+	# to compact once left the top bar sitting under the table.
+	var stack := [["top", t._top_bar], ["dealer", t._dealer_panel], ["felt", t._felt],
+			["player", t._player_panel]]
+	for i in range(stack.size() - 1):
+		var above: Control = stack[i][1]
+		var below: Control = stack[i + 1][1]
+		assert(above.global_position.y < below.global_position.y,
+			"%s (y=%.0f) must sit above %s (y=%.0f)" % [
+				stack[i][0], above.global_position.y, stack[i + 1][0], below.global_position.y])
+	var timer_rect := Rect2(t._timer.global_position, t._timer.size)
+	assert(screen.encloses(timer_rect.grow(-1.0)),
+		"timer (%s) leaves the screen %s" % [timer_rect, t.size])
+	var felt_rect: Rect2 = rects["felt"]
+	assert(felt_rect.encloses(timer_rect.grow(-1.0)),
+		"timer (%s) is not inside the felt (%s)" % [timer_rect, felt_rect])
+	assert(t._timer_layer.get_parent() == t._felt and t._timer_layer.get_index() > 0,
+		"timer must draw over the felt, not behind it")
+	assert(timer_rect.size.x <= t._layout["timer_size"] + 1.0,
+		"timer must keep its own size, not stretch to the felt (%s)" % timer_rect)
+	assert(timer_rect.end.x > felt_rect.position.x + felt_rect.size.x * 0.5,
+		"timer belongs in the felt's right half (%s in %s)" % [timer_rect, felt_rect])
 
 
 ## Switching layout mode mid-game must not leave panels overlapping. Resize to

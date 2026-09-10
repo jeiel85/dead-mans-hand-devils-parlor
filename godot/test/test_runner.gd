@@ -678,7 +678,9 @@ func _test_table_layout() -> void:
 		_check(L["side"].end.y <= v.y, "layout %s: 사이드가 세로로 넘지 않는다" % name)
 
 	# Compact hands placement to containers, so it only promises sizes.
-	for v in [Vector2(909, 420), Vector2(926, 720), Vector2(750, 420)]:
+	# 1344x420 is the short-but-wide case: wide there would compute a felt with
+	# negative height, so compactness has to look at the height as well.
+	for v in [Vector2(909, 420), Vector2(926, 720), Vector2(750, 420), Vector2(1344, 420), Vector2(2016, 420)]:
 		var L := TableLayout.compute(v)
 		var name := "%dx%d" % [int(v.x), int(v.y)]
 		_eq(L["compact"], true, "layout %s: compact 여야 한다" % name)

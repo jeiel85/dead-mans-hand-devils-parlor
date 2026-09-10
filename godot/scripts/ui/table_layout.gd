@@ -51,8 +51,11 @@ static func scale_for(window_height: float) -> float:
 	return window_height / dh
 
 
+## Width alone is not enough: the wide layout also needs the full design height.
+## A short, very wide window (1600x500, which maps to a 1344x420 viewport) would
+## otherwise pick wide and compute a felt with negative height.
 static func is_compact(viewport: Vector2) -> bool:
-	return viewport.x < COMPACT_MAX_WIDTH
+	return viewport.x < COMPACT_MAX_WIDTH or viewport.y < WIDE_HEIGHT
 
 
 ## Full layout for a viewport measured in design pixels.
@@ -85,7 +88,6 @@ static func _wide(v: Vector2) -> Dictionary:
 		"rank_card": Vector2(90.0, 128.0),
 		"portrait": Vector2(96.0, 106.0),
 		"item_min": Vector2(210.0, 44.0),
-		"item_fixed_width": true,
 		"hand_gap": 10.0,
 		"hand_top": 16.0,
 		"action_font": 17,
@@ -120,7 +122,6 @@ static func _compact(v: Vector2) -> Dictionary:
 		"rank_card": Vector2(44.0, 62.0),
 		"portrait": Vector2(58.0, 64.0),
 		"item_min": Vector2(96.0, 48.0),
-		"item_fixed_width": false,
 		"hand_gap": 8.0,
 		"hand_top": 6.0,
 		"action_font": 15,
