@@ -3,10 +3,24 @@
 // must be named index.html (the "Web" preset already writes ../build/web/index.html).
 //
 // Usage: node tools/pack-itch.mjs [exportDir] [outZip]
-// Plain Node (20.15+ / 22.2+ for zlib.crc32), no dependencies.
+// Plain Node 20+, no dependencies.
 import { readdirSync, readFileSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
-import { deflateRawSync, crc32 } from 'node:zlib';
+import * as zlib from 'node:zlib';
+
+// zlib.crc32 arrived in Node 20.15 / 22.2; package.json allows any Node 20, so
+// fall back to a table CRC-32 (same polynomial as zip) when it is missing.
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+const crc32 = zlib.crc32 ?? ((buf) => {
+  let c = 0xffffffff;
+  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+});
+const { deflateRawSync } = zlib;
 
 const root = process.argv[2] ?? 'build/web';
 const out = process.argv[3] ?? 'release/dead-mans-hand-itch-web.zip';
