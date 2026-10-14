@@ -525,6 +525,12 @@ func _test_josa() -> void:
 	_eq(I18n.batchim_of("가"), 0, "batchim: 받침 없음")
 	_eq(I18n.batchim_of("각"), 1, "batchim: 받침 있음")
 	_eq(I18n.batchim_of("갈"), 2, "batchim: ㄹ 받침")
+	# t() falls back to Korean for a missing English key, so a gap here ships
+	# Korean text to English players instead of failing loudly.
+	for key in I18n.KO.keys():
+		_check(I18n.EN.has(key), "EN[%s]: 영어 문자열이 있어야 한다" % key)
+	for key in I18n.EN.keys():
+		_check(I18n.KO.has(key), "KO[%s]: 한국어 문자열이 있어야 한다" % key)
 	# Every Korean string keeps both forms in the dictionary, so no live string
 	# can ship with an unresolved "이(가)" once it goes through t().
 	for key in I18n.KO.keys():

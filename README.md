@@ -136,6 +136,8 @@ godot --headless --path godot --export-release "Windows Desktop" ../build/window
 godot --headless --path godot --export-release "Linux" ../build/linux/DeadMansHand.x86_64
 ```
 
+itch.io에 올릴 웹 zip은 웹 익스포트 뒤 `npm run pack:itch`로 만듭니다(`release/dead-mans-hand-itch-web.zip`, 루트에 `index.html`). 업로드 설정·표지·소개문·Windows/Linux 내려받기 첨부 방법은 [`docs/itch/README.md`](docs/itch/README.md)에 있습니다.
+
 트레이스 픽스처를 다시 만들려면 `node tools/trace.js`를 실행합니다. 두 엔진의 이벤트가 어긋나면 Godot 테스트가 실패합니다.
 
 ## 저장소 구조
@@ -193,6 +195,8 @@ A **bluffing card game × russian roulette × roguelike** — a game design docu
 **Two implementations, one game.** `godot/` (Godot 4.7, GDScript) is the client the project builds on; the vanilla-JS prototype at the repo root is what the rules were first validated with. They are held in lockstep by a cross-engine regression test: `tools/trace.js` records 1,121 events across 5 seeds from the JS engine into `godot/test/fixtures/traces.json`, and the Godot headless runner replays the same seeds and compares field by field. 33,255 checks, 0 failures. Changing a number on one side alone breaks the build.
 
 **Not implemented (designed only).** Asynchronous ghost matches, Twitch viewer votes, multiplayer tables, run continuation, and the 2.5D presentation layer described in the original document.
+
+**itch.io.** `npm run pack:itch` zips the web export into `release/dead-mans-hand-itch-web.zip` (index.html at the root, no SharedArrayBuffer needed); upload settings, cover and page text are in [`docs/itch/`](docs/itch/README.md).
 
 **Docs.** [`docs/GDD.md`](docs/GDD.md) (Korean, v1.2.0) is the full design document; [`docs/CHANGELOG.md`](docs/CHANGELOG.md) lists what v1.1.0 corrected in the original (e.g. a cylinder wrap-around bug that re-fired spent chambers, an undefined curse bullet); [`docs/DECISIONS.md`](docs/DECISIONS.md) records hard-to-reverse decisions; [`docs/BACKLOG.md`](docs/BACKLOG.md) holds deferred work.
 
