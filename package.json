@@ -7,7 +7,8 @@
   "scripts": {
     "test": "node --test",
     "sim": "node tools/simulate.js",
-    "start": "python -m http.server 8080"
+    "start": "python -m http.server 8080",
+    "pack:itch": "node tools/pack-itch.mjs"
   },
   "engines": {
     "node": ">=20"
