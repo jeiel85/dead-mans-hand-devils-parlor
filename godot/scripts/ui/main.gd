@@ -720,19 +720,28 @@ func _fire_fx(ev: Dictionary) -> void:
 	else:
 		Audio.play("click")
 		col = Color("f2e9d8")
-	flash.color = Color(col, 0.75)
+	flash.color = Color(col, 0.90)
 	var t := create_tween()
-	t.tween_property(flash, "color:a", 0.0, 0.5)
+	t.tween_property(flash, "color:a", 0.0, 0.35)
+	if table != null:
+		table.shake(0.30)
 
 
 func show_reveal(ev: Dictionary, fires: Array, extra: Array, token: int) -> void:
 	var body := modal.open("reveal")
 	modal.set_width(600)
 	modal.eyebrow(I18n.t("reveal.claim", {"who": I18n.who(ev["by"], game.dealer["id"]), "rank": I18n.rank(ev["tableRank"]), "n": ev["cards"].size()}), true)
+	# brass rule
+	var rule := ColorRect.new()
+	rule.custom_minimum_size = Vector2(260, 1)
+	rule.color = Color(UIKit.C_BRASS, 0.45)
+	var rule_c := CenterContainer.new()
+	rule_c.add_child(rule)
+	body.add_child(rule_c)
 	var cards := modal.row(true)
 	for c in ev["cards"]:
-		cards.add_child(CardView.new(c["rank"], -1, true, false))
-	modal.title(I18n.t("reveal.title.lie") if ev["lie"] else I18n.t("reveal.title.truth"), 26, UIKit.C_RED if ev["lie"] else UIKit.C_GREEN, true)
+		cards.add_child(CardView.new(c["rank"], -1, false, false))
+	modal.title(I18n.t("reveal.title.lie") if ev["lie"] else I18n.t("reveal.title.truth"), 28, UIKit.C_RED if ev["lie"] else UIKit.C_GREEN, true)
 	var s := "" if ev["shooter"] == "player" else "s"
 	modal.text(I18n.t("reveal.shooter", {"who": I18n.who(ev["shooter"], game.dealer["id"]), "s": s}), 14, UIKit.C_PAPER_DIM, true)
 	var results := VBoxContainer.new()

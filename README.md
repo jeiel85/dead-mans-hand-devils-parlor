@@ -77,7 +77,7 @@
 | 딜러 AI(거짓 추정, 콜 점수, 블러핑 습관 학습) | 다인 테이블(3~4인) |
 | 시드 재현, KR/EN, 타이머·소리 옵션, 색약 이중 표기, 데스크톱·폰 두 가지 배치 | 런 이어하기, 런 간 메타 프로그레션 |
 | 절차 사운드(외부 에셋 0), 밸런스 시뮬레이터, CI, 한국어 조사 자동 처리 | 아트·실녹음 사운드 |
-| **Godot 빌드 3종(웹·Windows·Linux)**, 크로스 엔진 트레이스 검증 33,255건 | 피지컬 프로토타입(격발 손맛·1인칭 연출) |
+| **Godot 빌드 3종(웹·Windows·Linux)**, 크로스 엔진 트레이스 검증 33,779건 | 피지컬 프로토타입(격발 손맛·1인칭 연출) |
 
 ## 밸런스 (시뮬레이션 3,000런)
 
@@ -122,7 +122,7 @@ node tools/simulate.js 3000 both  # 밸런스 시뮬레이션 (naive / sharp 봇
 ```bash
 godot --path godot                                   # 실행
 godot --headless --path godot --import               # class_name 캐시 생성 (최초 1회)
-godot --headless --path godot res://test/test_runner.tscn   # 33,255건 검사
+godot --headless --path godot res://test/test_runner.tscn   # 33,779건 검사
 godot --path godot res://test/screenshot.tscn        # build/shots/에 12개 화면 캡처 + 단언
 godot --path godot --resolution 844x390 res://test/screenshot.tscn -- --prefix=compact-   # 좁은 배치
 python tools/subset-fonts.py                         # 문자열을 바꾼 뒤 폰트 서브셋 갱신
@@ -192,7 +192,7 @@ A **bluffing card game × russian roulette × roguelike** — a game design docu
 
 **What is implemented.** Core loop, forced call, cylinder reload, 7 floors, 7 dealer personas with gimmicks, 4 cheats with detection, 8 relics, floor rewards, dealer AI (lie estimation, call scoring, habit learning), seeded determinism, KR/EN, timer/sound toggles, reduced motion, color-blind-safe bullet glyphs, procedural SFX with zero external audio assets, a balance simulator (`node tools/simulate.js 3000 both`: naive bot 3.1% run win rate, sharp bot 50.7%), and CI.
 
-**Two implementations, one game.** `godot/` (Godot 4.7, GDScript) is the client the project builds on; the vanilla-JS prototype at the repo root is what the rules were first validated with. They are held in lockstep by a cross-engine regression test: `tools/trace.js` records 1,121 events across 5 seeds from the JS engine into `godot/test/fixtures/traces.json`, and the Godot headless runner replays the same seeds and compares field by field. 33,255 checks, 0 failures. Changing a number on one side alone breaks the build.
+**Two implementations, one game.** `godot/` (Godot 4.7, GDScript) is the client the project builds on; the vanilla-JS prototype at the repo root is what the rules were first validated with. They are held in lockstep by a cross-engine regression test: `tools/trace.js` records 1,121 events across 5 seeds from the JS engine into `godot/test/fixtures/traces.json`, and the Godot headless runner replays the same seeds and compares field by field. 33,779 checks, 0 failures. Changing a number on one side alone breaks the build.
 
 **Not implemented (designed only).** Asynchronous ghost matches, Twitch viewer votes, multiplayer tables, run continuation, and the 2.5D presentation layer described in the original document.
 

@@ -40,7 +40,7 @@ var _dealer_notes: Label
 var _rank_card_holder: Control
 var _rank_name: Label
 var _pile: HBoxContainer
-var _pile_empty: Label
+var _pile_stage: PileStage
 var _timer: TimerArc
 # side
 var _cylinder: CylinderView
@@ -227,6 +227,9 @@ func _build() -> void:
 	felt.add_theme_stylebox_override("panel", felt_style)
 	add_child(felt)
 	_felt = felt
+	# First child: the baize is drawn under everything the container puts on it.
+	var baize := FeltView.new()
+	felt.add_child(baize)
 	var frow := HBoxContainer.new()
 	frow.add_theme_constant_override("separation", 22)
 	felt.add_child(frow)
@@ -249,10 +252,12 @@ func _build() -> void:
 	_pile = HBoxContainer.new()
 	_pile.add_theme_constant_override("separation", 18)
 	_pile.alignment = BoxContainer.ALIGNMENT_BEGIN
-	_pile_empty = UIKit.label("", 13, Color(UIKit.C_PAPER, 0.5))
+	_pile_stage = PileStage.new()
+	_pile_stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_pile_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	pile_box.add_child(_lbl_pile)
+	pile_box.add_child(_pile_stage)
 	pile_box.add_child(_pile)
-	pile_box.add_child(_pile_empty)
 	frow.add_child(pile_box)
 	_timer = TimerArc.new()
 	_timer.visible = false
@@ -593,6 +598,7 @@ func render_static() -> void:
 	_btn_call.text = I18n.t("btn.call")
 	_btn_pass.text = I18n.t("btn.pass")
 	_lbl_pile.text = I18n.t("hud.pile").to_upper()
+	_pile_stage.caption_text = I18n.t("hud.pileEmpty")
 	_lbl_cyl.text = I18n.t("hud.cylinder").to_upper()
 	_lbl_relics.text = I18n.t("hud.relics").to_upper()
 	_lbl_log.text = I18n.t("hud.log").to_upper()
@@ -661,8 +667,8 @@ func _render_center(game: Rules) -> void:
 		_rank_name.text = I18n.rank(r["tableRank"])
 	_clear(_pile)
 	var pile: Array = r["pile"] if not r.is_empty() else []
-	_pile_empty.visible = pile.is_empty()
-	_pile_empty.text = I18n.t("hud.pileEmpty")
+	_pile_stage.visible = pile.is_empty()
+	_pile.visible = not pile.is_empty()
 	for i in range(pile.size()):
 		var p: Dictionary = pile[i]
 		var entry := VBoxContainer.new()
@@ -830,6 +836,15 @@ func hide_timer() -> void:
 	_timer.visible = false
 
 
+func shake(duration := 0.28) -> void:
+	var t := create_tween()
+	var base := Vector2.ZERO
+	for i in range(7):
+		var o := Vector2(randf_range(-5.0, 5.0), randf_range(-4.0, 4.0))
+		t.tween_property(self, "position", base + o, duration / 8.0)
+	t.tween_property(self, "position", base, duration / 8.0)
+
+
 # ---------------------------------------------------------------------------
 # Helper controls
 # ---------------------------------------------------------------------------
@@ -921,9 +936,47 @@ class TimerArc extends Control:
 		draw_string(UIKit.serif(), Vector2(0, c.y + 7), _text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 20, Color("ff6b6b") if _urgent else UIKit.C_PAPER)
 
 
-class RadialGlow extends Control:
+class PileStage extends Control:
+	var caption_text := ""
+
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var slot := Vector2(minf(64.0, size.x * 0.28), minf(88.0, size.y * 0.62))
+		var c := size / 2.0 + Vector2(0, -6.0)
+		var r := Rect2(c - slot / 2.0, slot)
+		if r.size.x < 12.0 or r.size.y < 12.0:
+			return
+		# faint backing
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0, 0, 0, 0.08)
+		sb.border_color = Color(UIKit.C_BRASS, 0.14)
+		sb.set_border_width_all(1)
+		sb.set_corner_radius_all(6)
+		draw_style_box(sb, r)
+		# corner brackets
+		var L := 12.0
+		var col := Color(UIKit.C_BRASS, 0.40)
+		var tl := r.position
+		var tr := Vector2(r.end.x, r.position.y)
+		var bl := Vector2(r.position.x, r.end.y)
+		var br := r.end
+		draw_line(tl, tl + Vector2(L, 0), col, 2.0)
+		draw_line(tl, tl + Vector2(0, L), col, 2.0)
+		draw_line(tr, tr + Vector2(-L, 0), col, 2.0)
+		draw_line(tr, tr + Vector2(0, L), col, 2.0)
+		draw_line(bl, bl + Vector2(L, 0), col, 2.0)
+		draw_line(bl, bl + Vector2(0, -L), col, 2.0)
+		draw_line(br, br + Vector2(-L, 0), col, 2.0)
+		draw_line(br, br + Vector2(0, -L), col, 2.0)
+		if caption_text != "":
+			draw_string(UIKit.sans(), Vector2(0, r.end.y + 20),
+				caption_text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 12,
+				Color(UIKit.C_PAPER, 0.45))
+
+
+class RadialGlow extends Control:
 
 	func _draw() -> void:
 		var c := Vector2(size.x * 0.5, size.y * 0.2)
