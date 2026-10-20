@@ -1,7 +1,7 @@
 // Service Worker for Dead Man's Hand: Devil's Parlor (Web Prototype)
 // Caches all core game shell files for offline play and PWA installation.
 
-const CACHE_NAME = 'dmh-devils-parlor-v1';
+const CACHE_NAME = 'dmh-devils-parlor-v2';
 
 const PRECACHE_ASSETS = [
   './',
