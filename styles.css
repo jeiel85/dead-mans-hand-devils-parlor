@@ -211,6 +211,8 @@ body.flash-curse::before { background: #5b2a8a; }
 .relic { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--brass-dim); color: var(--paper); background: rgba(229,192,123,.06); display: inline-flex; align-items: center; gap: 5px; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
+.repo-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; }
+.repo-link:hover, .repo-link:focus-visible { color: var(--brass); text-decoration: underline; }
 .items { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .item {
   text-align: left; background: rgba(0,0,0,.35); border: 1px solid var(--panel-edge); color: var(--paper);
