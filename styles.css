@@ -69,6 +69,7 @@ body.flash-curse::before { background: #5b2a8a; }
 }
 .ctl:hover { border-color: var(--brass); color: var(--brass); }
 .ctl.off { opacity: .5; text-decoration: line-through; }
+.ctl.install { border-color: var(--brass-dim); color: var(--brass); }
 
 /* Layout ----------------------------------------------------------------- */
 .table {

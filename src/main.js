@@ -46,6 +46,7 @@ let busy = false;
 let dealerTimer = null;
 let timer = { handle: null, deadline: 0 };
 let logLines = [];
+let deferredInstallPrompt = null;
 
 // ---------------------------------------------------------------------------
 // Settings & persistence
@@ -77,8 +78,47 @@ function boot() {
   setSound(settings.sound);
   document.documentElement.lang = getLang();
   bindStatic();
+  initPwa();
   renderStatic();
   showTitle();
+}
+
+function initPwa() {
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    syncInstallUi();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    syncInstallUi();
+  });
+}
+
+function syncInstallUi() {
+  const canInstall = Boolean(deferredInstallPrompt);
+  const topBtn = $('#btn-install');
+  if (topBtn) topBtn.hidden = !canInstall;
+  const titleBtn = $('#btn-install-title');
+  if (titleBtn) titleBtn.hidden = !canInstall;
+}
+
+async function promptInstall() {
+  if (!deferredInstallPrompt) return;
+  const promptEvent = deferredInstallPrompt;
+  deferredInstallPrompt = null;
+  syncInstallUi();
+  try {
+    await promptEvent.prompt();
+    await promptEvent.userChoice;
+  } catch {
+    /* install prompt dismissed or unavailable */
+  }
 }
 
 function bindStatic() {
@@ -106,6 +146,7 @@ function bindStatic() {
     else if (game && game.phase === PHASE.ROUND && game.round.turn === 'player' && game.round.phase === 'respond') startTimer();
   });
   $('#btn-help').addEventListener('click', () => showHelp());
+  $('#btn-install').addEventListener('click', promptInstall);
 
   $('#player-hand').addEventListener('click', (e) => {
     const el = e.target.closest('[data-card]');
@@ -144,6 +185,9 @@ function renderStatic() {
   $('#btn-timer').classList.toggle('off', !settings.timer);
   $('#btn-timer').setAttribute('aria-label', `${t('set.timer')} ${settings.timer ? t('set.on') : t('set.off')}`);
   $('#btn-help').setAttribute('aria-label', t('help.title'));
+  $('#btn-install').textContent = `⬇ ${t('btn.install')}`;
+  $('#btn-install').setAttribute('aria-label', t('btn.install'));
+  syncInstallUi();
   $('#btn-play').textContent = t('btn.play');
   $('#btn-call').textContent = t('btn.call');
   $('#btn-pass').textContent = t('btn.pass');
@@ -205,6 +249,7 @@ function showTitle() {
       <div class="row">
         <button class="primary" id="btn-start">${t('btn.newRun')}</button>
         <button id="btn-rules">${t('btn.howToPlay')}</button>
+        <button id="btn-install-title"${deferredInstallPrompt ? '' : ' hidden'}>⬇ ${esc(t('btn.install'))}</button>
       </div>
       <p class="muted small">${esc(best)} · ${esc(t('app.prototype'))}</p>
     </div>`,
@@ -217,6 +262,7 @@ function showTitle() {
     if (e.key === 'Enter') $('#btn-start').click();
   });
   $('#btn-rules').addEventListener('click', () => showHelp('title'));
+  $('#btn-install-title').addEventListener('click', promptInstall);
 }
 
 function cylinderArt() {
