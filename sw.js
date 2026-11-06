@@ -1,7 +1,7 @@
 // Service Worker for Dead Man's Hand: Devil's Parlor (Web Prototype)
 // Caches all core game shell files for offline play and PWA installation.
 
-const CACHE_NAME = 'dmh-devils-parlor-v2';
+const CACHE_NAME = 'dmh-devils-parlor-v3';
 
 const PRECACHE_ASSETS = [
   './',
@@ -24,10 +24,14 @@ const PRECACHE_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  // 이 파일들은 주소에 버전이 없어 내용이 바뀌어도 주소가 같다. 그냥 받으면 HTTP 캐시(Pages 10분)에 남은
+  // 옛 파일이 새 캐시에 들어가 캐시 우선으로 나간다(manifest id를 고쳐도 Chrome이 옛 id를 보던 문제).
+  // 그래서 설치 때는 HTTP 캐시를 건너뛰고 새로 받는다.
+  const requests = PRECACHE_ASSETS.map((url) => new Request(url, { cache: 'reload' }));
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .then((cache) => cache.addAll(requests))
       .then(() => self.skipWaiting()),
   );
 });

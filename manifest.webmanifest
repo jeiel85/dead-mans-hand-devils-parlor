@@ -3,7 +3,7 @@
   "short_name": "Dead Man's Hand",
   "description": "블러핑 카드 게임 × 러시안 룰렛 × 로그라이크 — 망자의 패: 악마의 살롱",
   "lang": "ko",
-  "id": "./",
+  "id": "/dead-mans-hand-devils-parlor/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

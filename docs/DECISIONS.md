@@ -80,3 +80,12 @@
 - **결정**: **(c)**. 워크플로가 Godot 리눅스 바이너리와 익스포트 템플릿을 받아 헤드리스로 빌드하고, 저장소 루트(JS 프로토타입)와 `play/`(Godot 빌드)를 한 artifact로 배포한다.
 - **근거**: 38MB 바이너리를 커밋할 때마다 저장소 히스토리가 영구히 커진다. 클론 비용은 되돌릴 수 없다. 소스와 산출물이 어긋날 여지도 사라진다.
 - **되돌릴 비용**: 낮음(저장소 Pages 설정 한 번). 단, 한 번 커밋한 대용량 파일은 히스토리에서 지우기 어려우므로 커밋하지 않는 쪽을 기본으로 둔다.
+
+## D-011 · 웹 프로토타입의 앱 식별자(manifest `id`)는 `/dead-mans-hand-devils-parlor/` — 2026-11-06
+
+- **배경**: 루트 `manifest.webmanifest`의 `"id": "./"`는 manifest 위치가 아니라 start_url의 **출처**(`https://jeiel85.github.io`) 기준으로 풀려 `https://jeiel85.github.io/`가 된다. 같은 출처의 다른 Pages 게임 8개도 `"./"`라 Chrome은 이들을 모두 같은 앱으로 봤다(한 게임이 설치돼 있으면 다른 게임에서 설치 제안이 나오지 않고, 설치된 앱의 시작 주소가 다른 게임으로 덮어써지기도 했다). Chrome DevTools `Page.getAppId`도 `/dead-mans-hand-devils-parlor/`를 권한다. `play/`의 Godot 빌드는 자체 manifest(`index.manifest.json`, id 없음 → `…/play/index.html`)라 이미 따로 잡힌다.
+- **선택지**: (a) id를 빼기(start_url `./`가 id가 되어 결과는 같지만 start_url을 바꾸면 정체성도 바뀐다), (b) 경로를 명시.
+- **결정**: **(b)** `"id": "/dead-mans-hand-devils-parlor/"`. `tests/pwa.test.js`가 이 값을 지킨다.
+- **근거**: 출처 안에서 이 프로토타입만의 경로라 겹치지 않는다. 명시해 두면 start_url에 쿼리를 붙여도 정체성이 유지된다.
+- **되돌릴 비용**: 높음. id는 앱의 정체성이라 바꾸면 이미 설치한 앱이 새 manifest를 받지 못하고 새 앱으로 다시 설치해야 한다. 이번 변경 전에 설치한 앱도 그렇다(옛 앱을 지우고 다시 설치). 옛 id는 다른 앱과 겹쳐 있어 어차피 바로잡아야 했다. 저장(localStorage)은 출처 단위라 영향이 없다.
+- **함께 고친 것**: 서비스 워커가 설치 때 파일을 HTTP 캐시에서 받아, 고친 manifest 대신 옛 manifest가 캐시에 들어갈 수 있었다. 설치 때는 `cache: 'reload'`로 새로 받고, 캐시 이름을 `v3`으로 올렸다.

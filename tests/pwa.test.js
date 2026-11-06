@@ -10,6 +10,8 @@ test('manifest.webmanifest is valid and all icon files exist', () => {
   assert.ok(existsSync(manifestPath), 'manifest.webmanifest exists');
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
+  // "./"는 manifest 위치가 아니라 출처(jeiel85.github.io) 기준으로 풀려 같은 출처의 다른 게임과 같은 앱이 된다(D-011).
+  assert.equal(manifest.id, '/dead-mans-hand-devils-parlor/');
   assert.equal(manifest.display, 'standalone');
   assert.ok(manifest.name);
   assert.ok(manifest.short_name);
